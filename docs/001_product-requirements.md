@@ -53,8 +53,8 @@ Claude アプリを日常的に使い、英語記事を読む中で知らない�
 #### アーキテクチャ方針
 
 - **辞書情報の生成主体**：Claude Desktop（MCP 呼び出し側の LLM）。Claude との会話の中で和訳・品詞・例文を生成し、その結果を MCP ツールに渡して保存する。MCP サーバーはデータを受け取って永続化するだけで、サーバー側からは Claude API を呼ばない。
-- **MCP トランスポート**：リモート HTTP（stdio ではない）。AWS Lambda + API Gateway 上にホストする。
-- **ユーザー認証**：OAuth 2.0 PKCE（Cognito 連携）。Claude Desktop が初回起動時に Cognito Hosted UI へリダイレクト → アクセストークン（JWT）を取得 → 以降のリクエストは Bearer トークン付きで送信。MCP サーバーは `exp` / `iss` / `aud` / 署名を検証し、`sub` クレームをユーザー ID として使用する。トークン失効時は Claude Desktop 側で Cognito Hosted UI 再認証を促す。
+- **MCP トランスポート**：リモート HTTP（stdio ではない）。Next.js の API ルート（`/api/mcp`）として実装し、SST NextjsSite（OpenNext + CloudFront + Lambda）上にホストする。Web 閲覧画面と同一の Next.js アプリに統合する。
+- **ユーザー認証**：OAuth 2.0 PKCE（Cognito 連携）。Claude Desktop が初回起動時に Cognito Hosted UI へリダイレクト → アクセストークン（JWT）を取得 → 以降のリクエストは Bearer トークン付きで送信。MCP サーバーは `exp` / `iss` / `client_id`（アプリクライアント ID）/ `token_use === "access"` / 署名を検証し、`sub` クレームをユーザー ID として使用する。トークン失効時は Claude Desktop 側で Cognito Hosted UI 再認証を促す。
 
 #### 単語の正規化ルール
 
@@ -187,7 +187,7 @@ Claude アプリから以下の操作を自然言語で実行できる。
 
 - Cognito 認証済みユーザーのみ単語帳へアクセス可能
 - MCP ツールは JWT の `sub` に基づき操作対象の単語帳を限定（他ユーザーのデータへのアクセス不可）
-- JWT 検証項目：`exp`（有効期限）/ `iss`（発行者）/ `aud`（対象者）/ 署名（Cognito 公開鍵）
+- JWT 検証項目：`exp`（有効期限）/ `iss`（発行者）/ `client_id`（アプリクライアント ID 一致）/ `token_use === "access"`（ID トークンとの取り違え防止）/ 署名（Cognito 公開鍵）
 - AWS IAM 最小権限原則に従ったロール設計
 - Claude API はサーバー側から呼ばないため、API キーをサーバーに持つ必要はない
 
@@ -198,7 +198,7 @@ Claude アプリから以下の操作を自然言語で実行できる。
 
 ### 監視
 
-- Lambda / API Gateway のログを CloudWatch Logs に出力
+- Lambda / CloudFront のログを CloudWatch Logs に出力
 - エラー率・実行時間を最低限確認できること
 
 ### 対応環境
@@ -212,8 +212,8 @@ Claude アプリから以下の操作を自然言語で実行できる。
 | --- | --- |
 | 言語 | TypeScript |
 | インフラ | AWS / SST |
-| フロントエンド | Next.js |
+| フロントエンド / MCP サーバー | Next.js（Web 閲覧画面 + MCP API ルートを統合） |
 | 認証 | Amazon Cognito（Hosted UI + OAuth 2.0 PKCE） |
 | データベース | Amazon DynamoDB |
-| MCP ホスティング | AWS Lambda + API Gateway（リモート HTTP） |
+| ホスティング | SST NextjsSite（OpenNext + CloudFront + Lambda） |
 | LLM（将来の音声） | OpenAI API（次フェーズ） |
