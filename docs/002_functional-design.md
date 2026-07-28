@@ -31,7 +31,7 @@ graph LR
   CD -->|OAuth 2.0 PKCE| COG
   CD -->|Bearer JWT / POST /api/mcp| CF --> NEXT --> DDB
   NEXT -->|個別ページ URL 返却| CD
-  BR -->|Hosted UI ログイン（NextAuth.js）| COG
+  BR -->|Hosted UI ログイン（Better Auth）| COG
   BR --> CF
   CF --> S3
   NEXT --> CW
@@ -43,7 +43,7 @@ graph LR
 | --- | --- | --- |
 | MCP ツール実行 | JWT 検証（API ルート内自前実装） → 単語正規化 → バリデーション → DynamoDB 操作 → 結果整形 | Next.js API ルート（`/api/mcp`） |
 | 認証（MCP） | OAuth 2.0 PKCE フロー、JWT 発行・失効管理 | Cognito |
-| 認証（Web） | NextAuth.js による Hosted UI ログイン、HTTP-only Cookie セッション発行 | Next.js + Cognito |
+| 認証（Web） | Better Auth による Hosted UI ログイン、HTTP-only Cookie セッション発行 | Next.js + Cognito |
 | Cognito ユーザー管理 | セルフサインアップ無効・管理者作成のみ・初回パスワード変更強制 | Cognito（管理者操作） |
 | 閲覧 | 一覧・モーダル・個別ページのレンダリング | Next.js（SST `NextjsSite`） |
 | 永続化 | ユーザー単位の単語データ CRUD、前方一致検索 | DynamoDB |
@@ -105,7 +105,7 @@ Cognito のアクセストークンは `aud` クレームを持たない。代�
 
 正規化は MCP サーバーのミドルウェアで実施し、バリデーションより前に行う。DynamoDB の SK は常に正規化済みの値を格納する。`register_word`/`update_word` の `word` パラメータおよび `search_words` の `prefix` パラメータが対象。
 
-`prefix` のバリデーション規則：正規化後に 1 文字以上であること（空文字はバリデーションエラー）、使用可能文字は `word` と同じ `[a-z' -]`。空文字を許容すると `begins_with ""` で全件返却となるため必須制約とする。
+`prefix` のバリデーション規則：正規化後に 1 文字以上であること（空文字はバリデーションエラー）、使用可能文字と先頭文字制約は `word` と同じ `/^[a-z][a-z' -]*$/`。空文字を許容すると `begins_with ""` で全件返却となるため必須制約とする。
 
 ## ユースケース図
 
@@ -178,20 +178,20 @@ sequenceDiagram
 sequenceDiagram
   participant BR as ブラウザ
   participant NEXT as Next.js（Lambda）
-  participant NAUTH as NextAuth.js
+  participant BAUTH as Better Auth
   participant COG as Cognito
   participant DDB as DynamoDB
 
   BR->>NEXT: GET /wordbook（未認証）
   NEXT-->>BR: ログインページへリダイレクト
-  BR->>NAUTH: ログインリクエスト
-  NAUTH->>COG: Hosted UI へリダイレクト
+  BR->>BAUTH: ログインリクエスト
+  BAUTH->>COG: Hosted UI へリダイレクト
   COG-->>BR: 認証画面表示
   BR->>COG: 認証情報入力
-  COG-->>NAUTH: 認可コード
-  NAUTH->>COG: トークン交換
-  COG-->>NAUTH: アクセストークン（JWT）
-  NAUTH-->>BR: HTTP-only Cookie セッション発行
+  COG-->>BAUTH: 認可コード
+  BAUTH->>COG: トークン交換
+  COG-->>BAUTH: アクセストークン（JWT）
+  BAUTH-->>BR: HTTP-only Cookie セッション発行
   BR->>NEXT: GET /wordbook（認証済み）
   NEXT->>NEXT: セッション Cookie から sub 抽出 → userId
   NEXT->>DDB: Query（PK=userId, 全件取得）
@@ -250,7 +250,7 @@ type SearchResultItem = {
 | バリデーションエラー | 200（MCP エラー応答） | 具体的なフィールド名とエラー内容 |
 | 対象単語が存在しない | 200（MCP エラー応答） | 単語名を含む自然言語メッセージ |
 | DynamoDB 障害等（捕捉可能エラー） | 200（MCP エラー応答） | 原因の分かる自然言語エラーメッセージ |
-| Lambda タイムアウト・OOM | 502/504（Lambda Function URL / CloudFront が返す） | MCP クライアント側でネットワークエラーとして扱われる（Lambda はメッセージ整形不可） |
+| Lambda タイムアウト・OOM | 502/504（CloudFront が返す） | MCP クライアント側でネットワークエラーとして扱われる（Lambda はメッセージ整形不可） |
 
 ### 個別ページ URL 形式
 

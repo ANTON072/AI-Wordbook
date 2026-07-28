@@ -54,18 +54,11 @@ Claude アプリを日常的に使い、英語記事を読む中で知らない�
 
 - **辞書情報の生成主体**：Claude Desktop（MCP 呼び出し側の LLM）。Claude との会話の中で和訳・品詞・例文を生成し、その結果を MCP ツールに渡して保存する。MCP サーバーはデータを受け取って永続化するだけで、サーバー側からは Claude API を呼ばない。
 - **MCP トランスポート**：リモート HTTP（stdio ではない）。Next.js の API ルート（`/api/mcp`）として実装し、SST NextjsSite（OpenNext + CloudFront + Lambda）上にホストする。Web 閲覧画面と同一の Next.js アプリに統合する。
-- **ユーザー認証**：OAuth 2.0 PKCE（Cognito 連携）。Claude Desktop が初回起動時に Cognito Hosted UI へリダイレクト → アクセストークン（JWT）を取得 → 以降のリクエストは Bearer トークン付きで送信。MCP サーバーは `exp` / `iss` / `client_id`（アプリクライアント ID）/ `token_use === "access"` / 署名を検証し、`sub` クレームをユーザー ID として使用する。トークン失効時は Claude Desktop 側で Cognito Hosted UI 再認証を促す。
+- **ユーザー認証**：OAuth 2.0 PKCE（Cognito 連携）。Claude Desktop が初回起動時に Cognito Hosted UI へリダイレクト → アクセストークン（JWT）を取得 → 以降のリクエストは Bearer トークン付きで送信。MCP サーバーは Cognito 発行のアクセストークンを検証し、`sub` クレームをユーザー ID として使用する（検証詳細は[機能設計書（002）](./002_functional-design.md)を参照）。トークン失効時は Claude Desktop 側で Cognito Hosted UI 再認証を促す。
 
 #### 単語の正規化ルール
 
-登録・検索・重複判定はすべて正規化後のキーを基準とする。
-
-| 処理 | 内容 |
-| --- | --- |
-| 大文字→小文字 | `Reliable` → `reliable` |
-| 全角英数字→半角 | `ｒｅｌｉａｂｌｅ` → `reliable` |
-| 前後の空白除去 | `" reliable "` → `"reliable"` |
-| 連続スペースの統一 | `"pick  up"` → `"pick up"` |
+登録・検索・重複判定はすべて正規化後のキーを基準とする（大文字→小文字・全角英数字→半角・前後空白除去・連続スペース統一。詳細は[機能設計書（002）](./002_functional-design.md)を参照）。
 
 #### MCP ツール
 
@@ -137,14 +130,6 @@ Claude アプリから以下の操作を自然言語で実行できる。
 | 和訳（translation） | 必須。1〜200 文字 |
 | 例文（examples） | 1〜3 件。英文・和訳ともに必須（Claude が生成できた件数を許容。最低 1 件） |
 
-#### DynamoDB キー設計
-
-| 項目 | 値 |
-| --- | --- |
-| パーティションキー（PK） | `userId`（Cognito の `sub`） |
-| ソートキー（SK） | 正規化済み英単語 |
-| 前方一致検索 | メインテーブルで `Query(PK=userId, SK begins_with "...")` を使用。GSI は不要 |
-
 #### Web 画面
 
 | 画面 | 機能 |
@@ -155,7 +140,7 @@ Claude アプリから以下の操作を自然言語で実行できる。
 
 **検索の並び順：** Web 一覧は登録日時降順、`search_words` はアルファベット順。用途の違いによる意図的な差。Web は「最近登録した単語を上に」、MCP 検索は「スペルで探しやすく」という目的に対応する。
 
-**個別ページの URL キー：** 正規化済み英単語を URL エンコードした値。MCP が返す URL もエンコード済みとする（例：`/wordbook/pick%20up`）。
+**個別ページの URL キー：** 正規化済み英単語を URL エンコードした値（URL エンコードの詳細例は[機能設計書（002）](./002_functional-design.md)を参照）。
 
 #### 認証
 
@@ -187,7 +172,7 @@ Claude アプリから以下の操作を自然言語で実行できる。
 
 - Cognito 認証済みユーザーのみ単語帳へアクセス可能
 - MCP ツールは JWT の `sub` に基づき操作対象の単語帳を限定（他ユーザーのデータへのアクセス不可）
-- JWT 検証項目：`exp`（有効期限）/ `iss`（発行者）/ `client_id`（アプリクライアント ID 一致）/ `token_use === "access"`（ID トークンとの取り違え防止）/ 署名（Cognito 公開鍵）
+- MCP ツールは Cognito 発行のアクセストークンを検証することで認可する（検証項目の詳細は[機能設計書（002）](./002_functional-design.md)を参照）
 - AWS IAM 最小権限原則に従ったロール設計
 - Claude API はサーバー側から呼ばないため、API キーをサーバーに持つ必要はない
 
@@ -213,7 +198,8 @@ Claude アプリから以下の操作を自然言語で実行できる。
 | 言語 | TypeScript |
 | インフラ | AWS / SST |
 | フロントエンド / MCP サーバー | Next.js（Web 閲覧画面 + MCP API ルートを統合） |
-| 認証 | Amazon Cognito（Hosted UI + OAuth 2.0 PKCE） |
+| 認証（MCP） | Amazon Cognito（Hosted UI + OAuth 2.0 PKCE） |
+| 認証（Web） | Better Auth（Cognito を OAuth プロバイダーとして使用） |
 | データベース | Amazon DynamoDB |
 | ホスティング | SST NextjsSite（OpenNext + CloudFront + Lambda） |
 | LLM（将来の音声） | OpenAI API（次フェーズ） |
