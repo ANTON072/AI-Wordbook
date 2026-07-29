@@ -49,7 +49,7 @@ graph LR
 | 永続化 | ユーザー単位の単語データ CRUD、前方一致検索 | DynamoDB |
 | 監視 | Lambda ログ出力（CloudFront は標準メトリクスで確認、詳細は003） | CloudWatch Logs |
 
-MCP ツールと Web 閲覧画面は同一の Next.js アプリに統合する。MCP エンドポイントは Next.js の Route Handler（`app/api/mcp/route.ts`）として実装し、共通ミドルウェアチェーンを通過した後、JSON-RPC の `method` フィールドに基づき各ツールハンドラへ分岐する。
+MCP ツールと Web 閲覧画面は同一の Next.js アプリに統合する。MCP エンドポイントは Next.js の Route Handler（`/api/mcp`。物理配置は 004）として実装し、共通ミドルウェアチェーンを通過した後、JSON-RPC の `method` フィールドに基づき各ツールハンドラへ分岐する。
 
 ```
 POST /api/mcp リクエスト
@@ -202,7 +202,7 @@ sequenceDiagram
 
 ### MCP エンドポイント
 
-`POST /api/mcp`（単一エンドポイント）にすべてのツール呼び出しを集約。Next.js の Route Handler（`app/api/mcp/route.ts`）として実装し、MCP JSON-RPC 形式でリクエストを受け取り、`method` フィールドと `params.name`（ツール名）でルーティングする。JWT 検証は Route Handler 内で自前実装する（PRD 学習目的：JWT 検証フローを自力実装・デプロイ）。CloudFront はリクエストを Lambda へ転送するだけで、JWT 検証・認証処理は一切行わない。
+`POST /api/mcp`（単一エンドポイント）にすべてのツール呼び出しを集約。Next.js の Route Handler（`/api/mcp`。物理配置は 004）として実装し、MCP JSON-RPC 形式でリクエストを受け取り、`method` フィールドと `params.name`（ツール名）でルーティングする。JWT 検証は Route Handler 内で自前実装する（PRD 学習目的：JWT 検証フローを自力実装・デプロイ）。CloudFront はリクエストを Lambda へ転送するだけで、JWT 検証・認証処理は一切行わない。
 
 **共通リクエストヘッダー**：`Authorization: Bearer <JWT>`
 
