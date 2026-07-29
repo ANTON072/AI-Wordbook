@@ -52,7 +52,7 @@ Claude アプリを日常的に使い、英語記事を読む中で知らない�
 
 #### アーキテクチャ方針
 
-- **辞書情報の生成主体**：Claude Desktop（MCP 呼び出し側の LLM）。Claude との会話の中で和訳・品詞・例文を生成し、その結果を MCP ツールに渡して保存する。MCP サーバーはデータを受け取って永続化するだけで、サーバー側からは Claude API を呼ばない。
+- **辞書情報の生成主体**：Claude Desktop（MCP 呼び出し側の LLM）。Claude との会話の中で和訳・品詞・例文を生成し、生成した辞書情報を MCP ツールに渡して保存する。MCP サーバーはデータを受け取って永続化するだけで、サーバー側からは Claude API を呼ばない。
 - **MCP トランスポート**：リモート HTTP（stdio ではない）。Next.js の API ルート（`/api/mcp`）として実装し、SST NextjsSite（OpenNext + CloudFront + Lambda）上にホストする。Web 閲覧画面と同一の Next.js アプリに統合する。
 - **ユーザー認証**：OAuth 2.0 PKCE（Cognito 連携）。Claude Desktop が初回起動時に Cognito Hosted UI へリダイレクト → アクセストークン（JWT）を取得 → 以降のリクエストは Bearer トークン付きで送信。MCP サーバーは Cognito 発行のアクセストークンを検証し、`sub` クレームをユーザー ID として使用する（検証詳細は[機能設計書（002）](./002_functional-design.md)を参照）。トークン失効時は Claude Desktop 側で Cognito Hosted UI 再認証を促す。
 
@@ -128,7 +128,7 @@ Claude アプリから以下の操作を自然言語で実行できる。
 | 品詞エントリ配列 | 必須。1 件以上 |
 | 品詞（partOfSpeech） | 必須。noun / verb / adjective / adverb / preposition / conjunction / pronoun / interjection のいずれか |
 | 和訳（translation） | 必須。1〜200 文字 |
-| 例文（examples） | 1〜3 件。英文・和訳ともに必須（Claude が生成できた件数を許容。最低 1 件） |
+| 例文（examples） | 1〜3 件（Claude が生成できた件数を許容）。英文・和訳ともに必須 |
 
 #### Web 画面
 

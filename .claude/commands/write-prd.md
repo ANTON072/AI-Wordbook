@@ -31,6 +31,7 @@ Read ツールで `.claude/skills/write-prd/template.md` を読む。
 ### 3. ドラフト作成
 
 インタビューで引き出した内容をテンプレートに流し込む。
+文体は `doc-writing-style` スキルの文体規範に従う。
 完成例は `.claude/skills/write-prd/example.md` を参照。
 
 ### 4. レビューを3周する

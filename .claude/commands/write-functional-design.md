@@ -27,6 +27,7 @@ Read ツールで `.claude/skills/write-functional-design/template.md` を読む
 
 インタビューで引き出した内容をテンプレートに流し込む。
 図（システム構成図・ユースケース図・シーケンス図）は Mermaid で記述する。
+文体は `doc-writing-style` スキルの文体規範に従う。
 完成例は `.claude/skills/write-functional-design/example.md` を参照。
 
 ### 4. レビューを3周する

@@ -27,6 +27,7 @@ Read ツールで `.claude/skills/write-architecture/template.md` を読む。
 
 インタビューで引き出した内容をテンプレートに流し込む。
 選定根拠・性能設計・コスト設計・IAM設計・環境変数は表形式で具体的な値とともに記述する。
+文体は `doc-writing-style` スキルの文体規範に従う。
 完成例は `.claude/skills/write-architecture/example.md` を参照。
 
 ### 4. レビューを3周する
