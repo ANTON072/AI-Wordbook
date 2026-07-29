@@ -33,21 +33,23 @@
 | 言語 | TypeScript | フロント（Next.js）とバックエンド（Lambda）で単語データ型（`Entry` / `Example` 型等）を共有でき、MCP・Web 間でデータ構造の齟齬を防げる | JavaScript（型共有の恩恵を失う） |
 | IaC / デプロイ | SST v3（ion） | Next.js を OpenNext 化して CloudFront + Lambda に載せる `NextjsSite` を宣言的に扱え、`Secret`・DynamoDB リソース参照・IAM 権限付与を一元管理できる。個人プロジェクトの運用コストが最小 | CDK 単体（Next.js の OpenNext 統合を手書きする必要があり冗長）／Serverless Framework（Next.js 統合が弱い） |
 | MCP 認証 | Amazon Cognito（Hosted UI + OAuth 2.0 PKCE） | OAuth 2.0 PKCE の Hosted UI を標準提供し、JWT の `sub` でユーザー分離できる。管理者によるユーザー手動作成（自由登録不可）・初回パスワード変更強制も設定で満たせる | Auth0（無料枠を超える運用が視野に入り個人利用ではオーバースペック）／自前 IdP（学習範囲を超え、認証を安全に自作するコストが高い） |
-| Web 認証 | Better Auth（Cognito を OAuth プロバイダーとして使用） | Cognito を OAuth プロバイダーとして使いつつ、HTTP-only Cookie セッションを自前 DB（DynamoDB）に持てる。Next.js App Router との親和性が高く型安全 | **NextAuth.js / Auth.js（採用せず）**：v5 移行期で DynamoDB アダプタの安定性に不安があり、セッション制御の自由度が Better Auth に劣ると判断 |
-| DB | Amazon DynamoDB | ユーザー単位の単語 CRUD と前方一致検索（`begins_with`）が単一テーブル・オンデマンド課金で無料枠に収まる。セッションも別テーブルで同一 DB に統合できる | RDS（常時起動コストが無料枠運用に不適）／DocumentDB（最小構成でも高コスト） |
+| Web 認証 | Cognito ＋ Next.js 自前実装（OAuth 認可コードフロー） | Cognito の Hosted UI でログインし、Next.js の Route Handler でコード交換 → 取得した JWT を HTTP-only Cookie に保持。Cognito 発行の JWT に `sub` が含まれるため、**MCP と同じ `jose` による JWT 検証をそのまま共用**でき、認証ロジックが一本化される。DB セッション・認証ライブラリを持たず最小構成 | **Better Auth（不採用）**：独自の user id 発番・`user`/`account`/`session` の管理・DynamoDB 用 custom adapter 自前実装が必要で、単一 IdP（Cognito のみ）の本アプリには過剰。**NextAuth.js / Auth.js（不採用）**：同様に独自ユーザー管理層が重く、DynamoDB アダプタの安定性にも不安 |
+| DB | Amazon DynamoDB | ユーザー単位の単語 CRUD と前方一致検索（`begins_with`）が単一テーブル・オンデマンド課金で無料枠に収まる | RDS（常時起動コストが無料枠運用に不適）／DocumentDB（最小構成でも高コスト） |
 | ホスティング | CloudFront + Lambda（OpenNext） | リクエスト従量課金でアイドル時コストゼロ。個人5名規模ではコールドスタートを許容できる。SST `NextjsSite` で一体管理 | Vercel（AWS/SST 前提のスタックと分離され構成が二重化する）／ECS Fargate（常時起動コストが不経済） |
 | MCP プロトコル | `@modelcontextprotocol/sdk`（公式） | MCP over HTTP のトランスポート・JSON-RPC フレーミングを公式実装で担保し、学習対象（JWT 検証の自前実装）に集中できる。プロトコル準拠と保守コストを SDK に委ねる | JSON-RPC 完全自前実装（プロトコル準拠の保守コストとバグリスクを負う。学習目的は JWT 検証側にあり、フレーミングまで自作する必要はない） |
 
-**認証の役割分担（Cognito × Better Auth）：** Cognito は「ユーザーの実体・パスワード・OAuth 発行元」を担う唯一の ID プロバイダー。MCP は Cognito 発行のアクセストークン（JWT）を Route Handler で自前検証する。Web は Better Auth が Cognito との OAuth コードフローを仲介し、成立したセッションを DynamoDB に永続化して HTTP-only Cookie で保持する。両経路とも最終的なユーザー識別子は Cognito の `sub`。
+**認証の役割分担（Cognito 一本化）：** Cognito は「ユーザーの実体・パスワード・OAuth 発行元」を担う唯一の ID プロバイダー。MCP・Web とも Cognito 発行の JWT を Route Handler で `jose` により自前検証する。MCP は Claude Desktop が Bearer トークンで送り、Web は Next.js が OAuth 認可コードフローで取得した JWT を HTTP-only Cookie に保持する（DB セッションは持たない）。両経路とも最終的なユーザー識別子は Cognito の `sub` であり、JWT から直接得られる。
+
+**検証ロジックの共用範囲（重要）：** 署名・`exp`・`iss`・`token_use === "access"` の検証は MCP・Web で完全に共通だが、**`client_id` の期待値だけは経路ごとに異なる**。認可コードフローで発行された Web の JWT は `client_id` が Web クライアント ID になるためである。共用モジュールは `expectedClientId` を引数に取る設計とし、MCP 経路は `COGNITO_MCP_CLIENT_ID`、Web 経路は `COGNITO_WEB_CLIENT_ID` を渡す。
 
 **Cognito アプリクライアントは2つ作成する：** MCP と Web はクライアント種別が異なり、Cognito のアプリクライアントは「シークレット有無」を切り替える単位のため、1つのクライアントで両立できない。
 
 | クライアント | 種別 | シークレット | フロー | 用途 |
 | --- | --- | --- | --- | --- |
 | MCP 用アプリクライアント | パブリック | **無し** | OAuth 2.0 PKCE | Claude Desktop が直接トークン取得。MCP の JWT `client_id` 検証はこのクライアント ID を期待値とする |
-| Web 用アプリクライアント | コンフィデンシャル | 有り | 認可コードフロー | Better Auth がトークン交換に使用。`COGNITO_WEB_CLIENT_SECRET` を保持 |
+| Web 用アプリクライアント | コンフィデンシャル | 有り | 認可コードフロー | Next.js の callback ハンドラ（`/api/auth/callback`）がサーバーサイドでトークン交換に使用。`COGNITO_WEB_CLIENT_SECRET` をサーバーで安全に保持 |
 
-002 が定めた「アクセストークンの `client_id` 検証」は MCP 経路のトークンに対する検証であり、期待値は **MCP 用アプリクライアントの ID**（`COGNITO_MCP_CLIENT_ID`）。Web クライアント ID で検証すると MCP 経路の JWT 検証が恒常的に失敗するため、両者を混同しない。
+002 が定めた「アクセストークンの `client_id` 検証」は経路ごとに期待値が異なる：**MCP 経路は `COGNITO_MCP_CLIENT_ID`、Web 経路（Cookie 内 JWT）は `COGNITO_WEB_CLIENT_ID`** を期待値とする。MCP 経路を Web クライアント ID で検証しても、Web 経路を MCP クライアント ID で検証しても、いずれも `client_id` 不一致で恒常的に失敗する。両者を取り違えない。
 
 **Cognito 課金階層：** Essentials 階層を前提とする（Hosted UI・OAuth 2.0 PKCE を含む）。無料 MAU 枠（Essentials は月間一定 MAU まで無料）内の5名規模のため課金は発生しない。
 
@@ -56,33 +58,29 @@
 | 用途 | ライブラリ | バージョン方針 | 選定根拠 |
 | --- | --- | --- | --- |
 | MCP サーバー実装 | `@modelcontextprotocol/sdk` | 最新安定版（`^1`） | MCP over HTTP のトランスポート・ツール登録・JSON-RPC フレーミングを公式実装で担保。Route Handler にマウントして使う |
-| JWT 検証（MCP） | `jose` | `^5` | Cognito 公開鍵（JWKS）での署名検証と `exp` / `iss` / `client_id` / `token_use === "access"` の検証を標準 API で実装でき、Lambda 上で軽量に動く。`createRemoteJWKSet` で JWKS キャッシュも標準サポート |
+| JWT 検証（MCP・Web 共用） | `jose` | `^5` | 002 が定めた検証項目（署名・`exp`・`iss`・`client_id`・`token_use`）を標準 API で実装でき、Lambda 上で軽量に動く。`createRemoteJWKSet` で JWKS キャッシュも標準サポート。MCP の Bearer トークン検証と Web の Cookie 内 JWT 検証で同一モジュールを使う（`client_id` 期待値のみ引数で切替。上記「検証ロジックの共用範囲」参照） |
 | DynamoDB クライアント | `@aws-sdk/client-dynamodb` + `@aws-sdk/lib-dynamodb` | AWS SDK v3 | `DynamoDBDocumentClient` で JSON の入出力が容易。Lambda ランタイム同梱版とメジャーを揃え、バンドルサイズを抑える |
-| Web 認証 | `better-auth` | 最新安定版 | 上記の選定根拠に同じ。OAuth プロバイダー（Cognito）連携とセッション管理を型安全に提供 |
-| Better Auth DynamoDB アダプタ | **custom adapter を自前実装**（`@aws-sdk/lib-dynamodb` を利用） | — | Better Auth が第一級サポートするアダプタは Kysely / Drizzle / Prisma / MongoDB 系で、DynamoDB 公式アダプタは存在しない。Better Auth の custom adapter インターフェース（`createAdapter`）を実装し、Session テーブルに対する CRUD を提供する。使用アクションは `PutItem` / `GetItem` / `UpdateItem` / `DeleteItem` / `Query` のみ（`Scan` は使わない設計とする） |
-| バリデーション | `zod` | `^3` | MCP ツール入力（`WordInput` / `Entry` / `prefix`）のスキーマ検証を型と一元化。正規化後の値に対して 002 のバリデーション規則を宣言的に表現 |
+| Web 認証（OAuth コードフロー） | 自前実装（追加ライブラリなし） | — | Cognito の `/oauth2/authorize`・`/oauth2/token` を Next.js の Route Handler から呼ぶだけで完結する。トークン交換は標準 `fetch`、`state` 検証・Cookie 発行も薄い自前コードで足りる。認証ライブラリ（Better Auth 等）は導入しない |
+| バリデーション | `zod` | `^4` | MCP ツール入力（`WordInput` / `Entry` / `prefix`）のスキーマ検証を型と一元化。正規化後の値に対して 002 のバリデーション規則を宣言的に表現 |
 | 単語正規化（共通モジュール） | 自前実装（`lib/normalize`） | — | Web と MCP で共通利用（002 の正規化ルールを単一実装に集約）。外部依存不要で、全角→半角・小文字化・空白正規化のみ |
 | テスト | `vitest` | 最新安定版 | TypeScript／Vite/Next.js エコシステムと親和性が高く、正規化・バリデーション・JWT 検証ロジックの単体テストを軽量に実行できる。テスト戦略・カバレッジ方針は 005 に委ねる |
 | UI スタイリング | `tailwindcss` | 最新安定版（Next.js 標準セットアップ） | 一覧・モーダル・個別ページの最小限の UI を素早く構築でき、追加のデザインシステム依存を持ち込まない。コンポーネント設計・CSS 設計は 004/005 に委ねる |
 
-**バージョン方針の原則：** メジャーバージョンを固定（キャレット指定）し、マイナー・パッチは自動追従。AWS SDK v3 は Lambda ランタイム同梱バージョンとメジャーを合わせる。Node.js ランタイムは Lambda で `nodejs22.x`（現行 LTS）を採用する。
+**バージョン方針の原則：** メジャーバージョンを固定（キャレット指定）し、マイナー・パッチは自動追従。AWS SDK v3 は Lambda ランタイム同梱バージョンとメジャーを合わせる。Node.js ランタイムは Lambda で `nodejs24.x`（24 系 LTS）を採用する。
 
-### セッションテーブル設計（Better Auth）
+### Web セッション（Cookie）方式
 
-単語テーブル（Wordbook、002 で定義済み）とは別に、認証データ専用の `WordbookSession` テーブルを設ける。単語データと認証データでキー設計・TTL・アクセスパターンを分離し、データモデルの見通しを良くするのが目的（実行ロールは単一のため IAM 権限分離は目的ではない）。本テーブルは 002 のスコープ外であり、本書で定義する。
+Web のログイン状態は**認証用の DB テーブルを持たず、HTTP-only Cookie に格納した JWT だけで表現**する（ステートレス）。Better Auth のような認証ライブラリを使わないため、独自 user id の発番も `sub` 解決の一手間も発生しない。
 
 | 項目 | 値 |
 | --- | --- |
-| パーティションキー（PK） | `pk`（`session#{id}` / `account#{id}` / `user#{id}` などエンティティ種別を接頭辞に持つ論理キー） |
-| userId 逆引き | **原則 GSI を設けない**。後述の通りセッションに `sub` を埋め込む設計により、通常フロー（ログイン維持・単語クエリ）は PK への `GetItem`／`Query` で完結する。「あるユーザーの全セッションを一括無効化」等、userId 逆引きが必要な操作を custom adapter が実装する場合に**限り**GSI を1本追加する |
-| 失効セッションの自動削除 | DynamoDB TTL 属性（`expiresAt` の epoch 秒）を有効化。期限切れセッションを自動削除し、削除課金ゼロ・ストレージ肥大を防止 |
-| キャパシティ | オンデマンド（Wordbook と同方針） |
+| 保持するもの | Cognito 発行の JWT を HTTP-only・`Secure`・`SameSite=Lax` の Cookie に格納 |
+| ユーザー識別 | 毎リクエストで Cookie 内 JWT を `jose` 検証し、`sub` クレームを直接 userId として使う（MCP と同一モジュール。ただし `client_id` 期待値は `COGNITO_WEB_CLIENT_ID`） |
+| 単語クエリ | `Query(PK=sub)`。MCP 側の PK（Bearer JWT の `sub`）と完全に一致する |
+| ログアウト／失効 | Cookie 削除、または JWT の `exp` 到達で失効。失効時はログインページへリダイレクト |
+| トークン期限切れ | 本フェーズではリフレッシュを実装せず、期限切れ時は再ログイン（PRD の「セッション失効時はログインページへリダイレクト」に準拠。将来リフレッシュトークン運用に拡張可能） |
 
-TTL 有効化のため、テーブル定義に `dynamodb:UpdateTimeToLive` を IaC（SST）で設定する。custom adapter は上記キー構造に対する `PutItem` / `GetItem` / `UpdateItem` / `DeleteItem` / `Query` のみで CRUD を完結させる。
-
-**Web の userId を Cognito `sub` に一致させる：** Better Auth は既定で独自の内部 user id を発番し、Cognito の `sub` は account レコードの `providerAccountId` 側に保持する。しかし Wordbook の PK は MCP と共通の Cognito `sub` でなければならない（一致しないと Web が単語を空振りする）。そのため custom adapter は account エンティティに Cognito `sub`（`providerAccountId`）を保存し、**Web の単語クエリに用いる userId は内部 user id ではなく `providerAccountId`（＝Cognito `sub`）を解決してから** `Query(PK=sub)` する。これにより MCP 側の PK（JWT `sub`）と Web 側の PK が一致する。
-
-解決コストを避けるため、**session レコード生成時に Cognito `sub` を session に埋め込み**（毎リクエストの account 引き当てを不要にする）、リクエストごとにセッション取得のみで `sub` を得られる設計とする。
+Cookie に JWT を載せるため、CSRF 対策として `SameSite=Lax` を基本とし、`state` パラメータで認可コードフローの改ざんを防ぐ。Cookie サイズは 4KB 制限に収まる範囲（アクセストークン単体）で運用する。
 
 ## 性能設計
 
@@ -96,7 +94,7 @@ PRD の性能目標（MCP 書き込み3秒以内・Web 一覧表示3秒以内、
 | DynamoDB キャパシティ | オンデマンド（PAY_PER_REQUEST） | トラフィックが読めず低頻度のため、プロビジョンドより無料枠運用に適する。キャパシティ計画不要 |
 | JWKS キャッシュ | `jose` の `createRemoteJWKSet`（Lambda 実行環境内メモリキャッシュ） | 毎リクエストの公開鍵取得を避け、ウォーム時のレイテンシを削減。鍵ローテーション時は検証失敗を契機に再取得（後述トレードオフ参照） |
 | DynamoDB 接続再利用 | クライアントを Lambda ハンドラ外で初期化 | ウォーム実行間で TCP コネクションを再利用しレイテンシを削減 |
-| Web 一覧取得 | `Query`（PK=userId、userId はセッションに埋めた Cognito `sub`。「セッションテーブル設計」参照）single-request | GSI 不要・1回の Query で全件取得（002 のキー設計に準拠）。`createdAt` 降順ソートはアプリ側で実施 |
+| Web 一覧取得 | `Query`（PK=userId、userId は Cookie 内 JWT を検証して得た Cognito `sub`）single-request | GSI 不要・1回の Query で全件取得（002 のキー設計に準拠）。`createdAt` 降順ソートはアプリ側で実施 |
 | `search_words` | `Query`（PK=userId, SK begins_with prefix） | SK 順（アルファベット順）でネイティブに取得。全一致をアプリ側でスライスして最大20件返却（002 のツール仕様に準拠） |
 
 **性能目標の内訳（ウォーム時の想定）：** JWKS メモリヒット（0ms）+ JWT 検証（数ms）+ DynamoDB 単一操作（一桁〜十数ms）で MCP 書き込みは 100ms 未満に収まる見込み。3秒目標に対し十分なマージンがあり、目標を脅かすのはコールドスタート時のみ（許容範囲）。
@@ -171,23 +169,22 @@ PRD 監視要件（エラー率・実行時間を最低限確認できること�
 
 | ロール | 許可アクション | リソース | 備考 |
 | --- | --- | --- | --- |
-| サーバー Lambda 実行ロール | `dynamodb:PutItem` `GetItem` `UpdateItem` `DeleteItem` `Query` | Wordbook テーブルの ARN のみ | `Scan` は付与しない（前方一致は `Query` + `begins_with` で足りる）。Wordbook は GSI を使わないため GSI ARN 不要 |
-| サーバー Lambda 実行ロール | `dynamodb:PutItem` `GetItem` `UpdateItem` `DeleteItem` `Query` | WordbookSession テーブルの ARN | Better Auth のセッション・アカウント永続化用。原則 GSI を使わないためテーブル ARN のみ |
+| サーバー Lambda 実行ロール | `dynamodb:PutItem` `GetItem` `UpdateItem` `DeleteItem` `Query` | Wordbook テーブルの ARN のみ | `Scan` は付与しない（前方一致は `Query` + `begins_with` で足りる）。GSI を使わないため GSI ARN 不要 |
 | サーバー Lambda 実行ロール | `logs:CreateLogGroup` `CreateLogStream` `PutLogEvents` | 当該関数のロググループ ARN | CloudWatch 出力用 |
 
-WordbookSession に GSI を追加する場合に限り、そのインデックス ARN（`table/WordbookSession/index/*`）への `Query` 権限を上記に加える（GSI への `Query` はインデックス ARN を別途要するため）。ARN は SST のリソース参照から注入し、ハードコードしない。
+Web 認証は Cookie 内 JWT のステートレス方式で認証用テーブルを持たないため、DynamoDB へのアクセスは Wordbook テーブル1つのみ。ARN は SST のリソース参照から注入し、ハードコードしない。
 
 **JWKS 取得の権限：** Cognito の JWKS エンドポイントは公開 HTTPS であり、IAM 権限は不要（Lambda のアウトバウンド HTTPS のみ）。
 
-**OpenNext 付随リソースの権限：** 再検証キュー（SQS）・ISR キャッシュテーブル・画像最適化関数など OpenNext が生成するリソースへの権限は、SST が各関数に**最小権限で自動付与**する。これらは上記の手書きロール表の対象外であり、手動でワイルドカードを付与しない。手書きで管理するのは Wordbook / WordbookSession テーブルと CloudWatch Logs のアクセスに限る。
+**OpenNext 付随リソースの権限：** 再検証キュー（SQS）・ISR キャッシュテーブル・画像最適化関数など OpenNext が生成するリソースへの権限は、SST が各関数に**最小権限で自動付与**する。これらは上記の手書きロール表の対象外であり、手動でワイルドカードを付与しない。手書きで管理するのは Wordbook テーブルと CloudWatch Logs のアクセスに限る。
 
-**認可の実装レイヤー（単一関数・単一ロール前提）：** 実行ロールは Wordbook の書き込み権限を必然的に持つため、「Web からの単語書き込み抑止」と「ユーザー間のデータ分離」は IAM ではなく**アプリ層（Route Handler）で保証する**。具体的には (1) 単語の書き込みは `/api/mcp` の MCP ツールハンドラ経由のみとし Web 画面ルートからは呼ばない、(2) 行レベルのユーザー分離は必ず検証済みトークン由来の識別子を PK に強制する — MCP は JWT の `sub`、Web はセッションから解決した Cognito `sub`（後述）を使い、クライアントから PK（userId）を受け取らない。
+**認可の実装レイヤー（単一関数・単一ロール前提）：** 実行ロールは Wordbook の書き込み権限を必然的に持つため、「Web からの単語書き込み抑止」と「ユーザー間のデータ分離」は IAM ではなく**アプリ層（Route Handler）で保証する**。具体的には (1) 単語の書き込みは `/api/mcp` の MCP ツールハンドラ経由のみとし Web 画面ルートからは呼ばない、(2) 行レベルのユーザー分離は必ず検証済みトークン由来の識別子を PK に強制する — MCP は Bearer JWT の `sub`、Web は Cookie 内 JWT を検証して得た `sub` を使い、クライアントから PK（userId）を受け取らない。
 
 ### シークレット・認証情報管理
 
-- Cognito のクライアントシークレット・Better Auth の署名シークレットは SST の `Secret` で管理し、リポジトリにコミットしない。
+- Cognito Web クライアントのシークレットは SST の `Secret` で管理し、リポジトリにコミットしない。
 - Lambda へは SST 経由で環境変数として注入する（値そのものはビルド成果物・IaC 定義に平文で残さない）。
-- MCP は Cognito 発行のアクセストークンを検証するのみで、サーバー側に Cognito クライアントシークレットを保持しない（PKCE のためクライアントシークレット不要。Web の OAuth コードフローでのみ使用）。
+- MCP は Cognito 発行のアクセストークンを検証するのみで、クライアントシークレットを持たない（PKCE のため不要）。Cognito クライアントシークレットは Web の OAuth コードフロー（サーバーサイドのトークン交換）でのみ使用する。
 - Claude API はサーバー側から呼ばないため、LLM の API キーをサーバーに持たない（PRD セキュリティ要件に準拠）。次フェーズの OpenAI API キーも本フェーズでは導入しない。
 
 ## 環境変数一覧
@@ -196,19 +193,16 @@ WordbookSession に GSI を追加する場合に限り、そのインデック�
 | --- | --- | --- | --- |
 | `COGNITO_USER_POOL_ID` | JWKS 取得・`iss` 組み立ての基点 | `ap-northeast-1_XXXXXXXXX` | SST |
 | `COGNITO_MCP_CLIENT_ID` | MCP トークンの `client_id` 検証の期待値（パブリック／PKCE クライアント） | 文字列 | SST |
-| `COGNITO_WEB_CLIENT_ID` | Web OAuth コードフローのクライアント（コンフィデンシャル） | 文字列 | SST |
+| `COGNITO_WEB_CLIENT_ID` | Web OAuth コードフローのクライアント（コンフィデンシャル）＋ Web 経路 JWT の `client_id` 検証の期待値 | 文字列 | SST |
 | `COGNITO_WEB_CLIENT_SECRET` | Web OAuth コードフローのトークン交換 | シークレット文字列 | SST Secret |
 | `COGNITO_DOMAIN` | Hosted UI ドメイン（Web ログインリダイレクト・authorize/token エンドポイント基点） | `https://{prefix}.auth.ap-northeast-1.amazoncognito.com` | SST |
 | `DYNAMODB_TABLE_NAME` | 単語テーブル名 | `Wordbook` | SST（リソース参照） |
-| `SESSION_TABLE_NAME` | Better Auth セッションテーブル名 | `WordbookSession` | SST（リソース参照） |
 | `AWS_REGION` | SDK リージョン | `ap-northeast-1` | Lambda ランタイム（予約変数） |
-| `BETTER_AUTH_SECRET` | Web セッション署名鍵 | ランダム32バイト以上 | SST Secret |
-| `BETTER_AUTH_URL` | Web のベース URL（OAuth コールバック基点） | `https://{独自ドメイン}` | SST |
-| `APP_BASE_URL` | 個別ページ URL 生成の基点（MCP 戻り値） | `https://{独自ドメイン}` | SST |
+| `APP_BASE_URL` | 個別ページ URL 生成の基点（MCP 戻り値）＋ OAuth コールバック（`/api/auth/callback`）の基点 | `https://{独自ドメイン}` | SST |
 
 **`iss` 期待値・JWKS URL の単一真実源：** `iss` は `https://cognito-idp.{AWS_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}`、JWKS URL は `{iss}/.well-known/jwks.json` で `COGNITO_USER_POOL_ID` から導出する。issuer URL を独立の環境変数として二重に持たせず、値の不整合を防ぐ。
 
-**`BETTER_AUTH_URL` と `APP_BASE_URL` の関係：** 両者は同一の独自ドメイン（Route53 で管理し CloudFront にバインドしたドメイン）を指す。SST で同一値（`https://{独自ドメイン}`）を注入し、ドメイン変更時に片方だけ更新される不整合を防ぐ。用途が異なるため変数名は分けるが、値の供給元は単一とする。
+**`APP_BASE_URL` の役割：** 独自ドメイン（Route53 で管理し CloudFront にバインドしたドメイン）を指し、MCP が返す個別ページ URL の基点と、Cognito OAuth のコールバック URL（`{APP_BASE_URL}/api/auth/callback`）の基点を兼ねる。URL 基点を単一の環境変数に集約し、ドメイン変更時の不整合を防ぐ。
 
 **`AWS_REGION` について：** Lambda ランタイムの予約環境変数であり、SST から明示注入する必要はない。SDK は自動でこれを参照する。
 
@@ -219,5 +213,6 @@ WordbookSession に GSI を追加する場合に限り、そのインデック�
 - **リージョン固定**：`ap-northeast-1`（東京）に固定（例外：ACM 証明書のみ CloudFront 要件で `us-east-1`、Route53 はグローバル）。マルチリージョン冗長化・災害復旧は本フェーズでは行わない。
 - **JWKS キャッシュのローテーション追従**：Cognito が署名鍵をローテーションした場合、`createRemoteJWKSet` のキャッシュ期間中は旧鍵で検証を試みる。未知の `kid` を検知した際に JWKS を再取得するフォールバック（`jose` の標準挙動）に依存する。頻度は低く、5名規模では実用上問題にならない。
 - **単一 Lambda・単一ロールによる IAM 境界の限界**：002 の「MCP と Web を同一 Next.js アプリに統合」に従い OpenNext は単一サーバー Lambda になるため、実行ロールは Wordbook の書き込み権限を必ず持つ。「Web からの単語書き込み抑止」と「ユーザー間データ分離」は IAM では担保できず、アプリ層（Route Handler：MCP 経由のみ書き込み・トークン由来の `sub` を PK に強制）で保証する。IAM 分離を得たい場合は関数分割が必要だが、デプロイ・境界の複雑化を避けるため本フェーズでは採らない。
-- **セッションストア別テーブルの運用**：Wordbook と WordbookSession の2テーブル構成となる。テーブル数は増えるが、単語データと認証データでキー設計・TTL・アクセスパターンを分離でき、データモデルの見通しが良くなる利点を優先した（IAM 上は同一ロールが両テーブルへアクセスする）。
+- **Web トークンのリフレッシュ未実装**：Web は Cognito アクセストークン（JWT）を Cookie に持つステートレス方式。アクセストークンの有効期限が切れると再ログインが必要になる（リフレッシュトークンによる自動更新は本フェーズでは実装しない）。PRD の「セッション失効時はログインページへリダイレクト」に準拠。体験を途切れさせたくなくなった段階でリフレッシュトークン運用へ拡張できる。
+- **Cookie ベース認証の考慮**：JWT を HTTP-only Cookie に載せるため、CSRF 対策（`SameSite=Lax`）・認可コードフローの `state` 検証・Cookie サイズ（4KB 制限）に留意する。認証用 DB を持たない代わりに、失効の即時強制（サーバー側でのセッション無効化）はできない点はトレードオフ（`exp` 到達で自然失効）。
 - **DynamoDB `Query` の 1MB 上限・ページネーション未実装**：Web 一覧の全件取得と `search_words` の全一致取得は、DynamoDB の 1リクエスト 1MB 上限に依存する。1ユーザーあたり数百語・1件あたり数 KB（品詞エントリ＋例文）を想定すると 1MB に十分収まるため、`LastEvaluatedKey` によるページング継続は実装しない。想定を大きく超える語数を登録したユーザーでは一覧・検索が途中までしか返らない制約があるが、5名・個人利用の規模では発生しない前提とする。

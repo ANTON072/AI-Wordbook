@@ -31,7 +31,7 @@ graph LR
   CD -->|OAuth 2.0 PKCE| COG
   CD -->|Bearer JWT / POST /api/mcp| CF --> NEXT --> DDB
   NEXT -->|個別ページ URL 返却| CD
-  BR -->|Hosted UI ログイン（Better Auth）| COG
+  BR -->|Hosted UI ログイン（OAuth 認可コード）| COG
   BR --> CF
   CF --> S3
   NEXT --> CW
@@ -43,7 +43,7 @@ graph LR
 | --- | --- | --- |
 | MCP ツール実行 | JWT 検証（API ルート内自前実装） → 単語正規化 → バリデーション → DynamoDB 操作 → 結果整形 | Next.js API ルート（`/api/mcp`） |
 | 認証（MCP） | OAuth 2.0 PKCE フロー、JWT 発行・失効管理 | Cognito |
-| 認証（Web） | Better Auth による Hosted UI ログイン、HTTP-only Cookie セッション発行 | Next.js + Cognito |
+| 認証（Web） | Cognito Hosted UI で OAuth 認可コードフロー → 取得した JWT を HTTP-only Cookie に保持（Next.js 自前実装。JWT 検証は MCP と共用だが `client_id` の期待値のみ経路依存、詳細は003。DB セッションは持たない） | Next.js + Cognito |
 | Cognito ユーザー管理 | セルフサインアップ無効・管理者作成のみ・初回パスワード変更強制 | Cognito（管理者操作） |
 | 閲覧 | 一覧・モーダル・個別ページのレンダリング | Next.js（SST `NextjsSite`） |
 | 永続化 | ユーザー単位の単語データ CRUD、前方一致検索 | DynamoDB |
@@ -178,23 +178,21 @@ sequenceDiagram
 sequenceDiagram
   participant BR as ブラウザ
   participant NEXT as Next.js（Lambda）
-  participant BAUTH as Better Auth
   participant COG as Cognito
   participant DDB as DynamoDB
 
   BR->>NEXT: GET /wordbook（未認証）
-  NEXT-->>BR: ログインページへリダイレクト
-  BR->>BAUTH: ログインリクエスト
-  BAUTH->>COG: Hosted UI へリダイレクト
-  COG-->>BR: 認証画面表示
-  BR->>COG: 認証情報入力
-  COG-->>BAUTH: 認可コード
-  BAUTH->>COG: トークン交換
-  COG-->>BAUTH: アクセストークン（JWT）
-  BAUTH-->>BR: HTTP-only Cookie セッション発行
-  BR->>NEXT: GET /wordbook（認証済み）
-  NEXT->>NEXT: セッション Cookie から sub 抽出 → userId
-  NEXT->>DDB: Query（PK=userId, 全件取得）
+  NEXT-->>BR: /login 経由で Cognito Hosted UI へリダイレクト（state 生成・付与）
+  BR->>COG: 認証情報入力（Hosted UI）
+  COG-->>BR: 認可コード + state を付けて /api/auth/callback へリダイレクト
+  BR->>NEXT: GET /api/auth/callback?code=...&state=...
+  NEXT->>NEXT: state 検証（CSRF 対策）
+  NEXT->>COG: トークン交換（code + client_secret）
+  COG-->>NEXT: アクセストークン（JWT）
+  NEXT-->>BR: JWT を HTTP-only Cookie に格納し /wordbook へリダイレクト
+  BR->>NEXT: GET /wordbook（Cookie 付き）
+  NEXT->>NEXT: Cookie の JWT を検証 → sub 抽出（MCP と同じ jose 検証。client_id 期待値のみ Web 用、詳細は003）
+  NEXT->>DDB: Query（PK=sub, 全件取得）
   DDB-->>NEXT: 単語一覧（SK順）
   NEXT->>NEXT: createdAt 降順ソート
   NEXT-->>BR: 一覧ページレンダリング
@@ -267,6 +265,8 @@ https://<ドメイン>/wordbook/<URLエンコード済み正規化語>
 
 | パス | 画面 | 認証 | データ取得 |
 | --- | --- | --- | --- |
+| `/login` | Cognito Hosted UI へのリダイレクト起点（`state` 生成） | 不要 | なし（302 で Cognito へ） |
+| `/api/auth/callback` | 認可コード受領 → `state` 検証 → トークン交換 → JWT を HTTP-only Cookie に発行 → `/wordbook` へリダイレクト | 不要 | なし（Cognito とトークン交換） |
 | `/wordbook` | 一覧ページ（登録日時降順・全件・前方一致検索） | 必須 | `Query(PK=userId)` 全件取得 → アプリ側で `createdAt` 降順ソート |
 | `/wordbook/[word]` | 個別ページ（全品詞エントリ＋例文） | 必須 | `decodeURIComponent([word])` → 正規化 → `GetItem(PK=userId, SK=正規化済み語)` |
 

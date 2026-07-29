@@ -199,7 +199,7 @@ Claude アプリから以下の操作を自然言語で実行できる。
 | インフラ | AWS / SST |
 | フロントエンド / MCP サーバー | Next.js（Web 閲覧画面 + MCP API ルートを統合） |
 | 認証（MCP） | Amazon Cognito（Hosted UI + OAuth 2.0 PKCE） |
-| 認証（Web） | Better Auth（Cognito を OAuth プロバイダーとして使用） |
+| 認証（Web） | Cognito（OAuth 2.0 認可コードフロー）＋ Next.js 自前実装（取得した JWT を HTTP-only Cookie で保持。検証方式の詳細は[技術仕様書（003）](./003_architecture.md)を参照） |
 | データベース | Amazon DynamoDB |
 | ホスティング | SST NextjsSite（OpenNext + CloudFront + Lambda） |
 | LLM（将来の音声） | OpenAI API（次フェーズ） |

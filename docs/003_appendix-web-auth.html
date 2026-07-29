@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>付録：Web 認証の仕組み（Cognito の JWT を直接使う）</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --ink:#1f2933; --muted:#6b7280;
+    --line:#d5d9e0;
+    --cognito:#2563eb; --cognito-bg:#e8f0fe;
+    --web:#ea580c; --web-bg:#fff1e8;
+    --store:#0f766e; --store-bg:#e6f4f1;
+    --good:#16a34a; --good-bg:#e9f7ef;
+    --bad:#dc2626; --bad-bg:#fdeaea;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",
+      "Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    line-height:1.8; font-size:16px;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:40px 24px 80px}
+  header.hero{
+    background:linear-gradient(135deg,#1e3a8a,#2563eb); color:#fff;
+    border-radius:16px; padding:32px 28px; margin-bottom:32px;
+  }
+  header.hero h1{margin:0 0 8px; font-size:24px; line-height:1.5}
+  header.hero p{margin:0; opacity:.92; font-size:15px}
+  h2{font-size:20px; margin:44px 0 12px; padding-left:12px; border-left:5px solid var(--cognito)}
+  h3{font-size:16px; margin:24px 0 8px}
+  p{margin:10px 0}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px; margin:16px 0; box-shadow:0 1px 2px rgba(0,0,0,.03);
+  }
+  .fig{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin:18px 0; overflow-x:auto}
+  .fig svg{display:block; margin:0 auto; max-width:100%; height:auto}
+  .caption{color:var(--muted); font-size:13px; text-align:center; margin-top:8px}
+  code{background:#eef1f5; padding:2px 6px; border-radius:5px; font-family:"SFMono-Regular",Consolas,Menlo,monospace; font-size:.9em}
+  .tag{display:inline-block; font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px; vertical-align:middle}
+  .tag.cognito{background:var(--cognito-bg); color:var(--cognito)}
+  .tag.web{background:var(--web-bg); color:var(--web)}
+  .callout{border-radius:12px; padding:16px 18px; margin:16px 0; font-size:15px}
+  .callout.key{background:var(--cognito-bg); border:1px solid #bcd3fb}
+  .callout.good{background:var(--good-bg); border:1px solid #b8e6c8}
+  .callout .lead{font-weight:700; display:block; margin-bottom:4px}
+  .callout.key .lead{color:var(--cognito)}
+  .callout.good .lead{color:var(--good)}
+  .analogy{background:#fff8ec; border:1px dashed #e6b980; border-radius:12px; padding:14px 18px; margin:14px 0; font-size:15px}
+  .analogy b{color:#b45309}
+  .steps{counter-reset:step; list-style:none; padding:0; margin:12px 0}
+  .steps li{position:relative; padding:4px 0 14px 44px; margin:0}
+  .steps li::before{
+    counter-increment:step; content:counter(step);
+    position:absolute; left:0; top:2px; width:30px; height:30px;
+    background:var(--cognito); color:#fff; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  table.cmp{border-collapse:collapse; width:100%; margin:14px 0; font-size:14.5px}
+  table.cmp th,table.cmp td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+  table.cmp th{background:#eef1f5}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4b5563"/>
+    </marker>
+    <marker id="arwGood" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16a34a"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="hero">
+    <h1>付録：Web 認証の仕組み（Cognito の JWT を直接使う）</h1>
+    <p>Web のログインを、認証ライブラリを使わず「Cognito が発行する JWT を HTTP-only Cookie に入れるだけ」で実装します。なぜこれで十分か、どう動くかを図解します。</p>
+  </header>
+
+  <div class="card">
+    <p style="margin-top:0">このドキュメントが答えること：</p>
+    <ul>
+      <li>Web はどうやってログインし、ログイン状態を保つのか</li>
+      <li>なぜ「ユーザーの ID がズレる」問題が起きないのか</li>
+      <li>MCP と Web で認証がどう共通化されているのか</li>
+      <li>認証用のデータベースが要らないのはなぜか</li>
+    </ul>
+  </div>
+
+  <h2>0. 一番大事な前提：ID は Cognito の JWT に入っている</h2>
+  <p>Cognito はログインに成功すると <strong>JWT（身分証トークン）</strong>を発行します。その中には、そのユーザーを表す<strong>一生変わらない背番号 <code>sub</code></strong> が入っています。</p>
+
+  <div class="analogy">
+    <b>たとえ：</b> <code>sub</code> は<b>あなた専用の棚の鍵番号</b>。単語は DynamoDB の「<code>sub</code> の棚」に保管されます（詳しくは DynamoDB 付録参照）。
+    ログイン方式が MCP でも Web でも、<b>同じ Cognito が同じ鍵番号（<code>sub</code>）の JWT を出す</b>ので、必ず同じ棚に着きます。
+  </div>
+
+  <div class="callout key">
+    <span class="lead">だから ID はズレない</span>
+    Web も MCP も「Cognito が発行した JWT の <code>sub</code>」をそのまま使います。間に独自の ID を作る仕組み（認証ライブラリ）を挟まないので、
+    <strong>「Web の ID と MCP の ID が食い違う」問題がそもそも発生しません</strong>。
+  </div>
+
+  <h2>1. 全体像：2つの入口、同じ JWT</h2>
+  <div class="fig">
+    <svg viewBox="0 0 780 250" role="img" aria-label="MCPとWebが同じCognito JWTのsubで同じ棚に着く図">
+      <!-- Cognito -->
+      <rect x="300" y="20" width="180" height="56" rx="10" fill="var(--cognito-bg)" stroke="var(--cognito)"/>
+      <text x="390" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="var(--cognito)">Cognito</text>
+      <text x="390" y="63" text-anchor="middle" font-size="11.5" fill="var(--cognito)">JWT（中に sub）を発行</text>
+      <!-- MCP -->
+      <rect x="40" y="110" width="300" height="56" rx="10" fill="#fff" stroke="var(--cognito)"/>
+      <text x="60" y="133" font-size="12.5" font-weight="700" fill="var(--cognito)">MCP（Claude Desktop）</text>
+      <text x="60" y="152" font-size="11.5" fill="var(--ink)">Bearer トークンで JWT を送る</text>
+      <!-- Web -->
+      <rect x="440" y="110" width="300" height="56" rx="10" fill="#fff" stroke="var(--web)"/>
+      <text x="460" y="133" font-size="12.5" font-weight="700" fill="var(--web)">Web（ブラウザ）</text>
+      <text x="460" y="152" font-size="11.5" fill="var(--ink)">JWT を Cookie に入れて送る</text>
+      <line x1="340" y1="55" x2="180" y2="108" stroke="#4b5563" stroke-width="1.6" marker-end="url(#arw)"/>
+      <line x1="440" y1="55" x2="600" y2="108" stroke="#4b5563" stroke-width="1.6" marker-end="url(#arw)"/>
+      <!-- store -->
+      <rect x="260" y="196" width="260" height="44" rx="10" fill="var(--store-bg)" stroke="var(--store)"/>
+      <text x="390" y="223" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--store)">DynamoDB：Query(PK = sub)</text>
+      <line x1="180" y1="166" x2="330" y2="194" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arwGood)"/>
+      <line x1="600" y1="166" x2="450" y2="194" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arwGood)"/>
+      <text x="390" y="185" text-anchor="middle" font-size="11.5" fill="var(--good)">どちらも同じ sub → 同じ棚 ✔</text>
+    </svg>
+    <div class="caption">図1：発行元は Cognito ひとつ。MCP も Web も同じ <code>sub</code> を使うので、同じユーザーは必ず同じ棚に着く。</div>
+  </div>
+
+  <h2>2. Web のログイン手順（OAuth 認可コードフロー）</h2>
+  <p>Web は「ログイン画面は Cognito に任せ、結果の JWT だけ受け取って Cookie に保存」します。手順はこうです。</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 780 300" role="img" aria-label="OAuth認可コードフローのステップ図">
+      <!-- actors -->
+      <text x="80" y="28" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--web)">ブラウザ</text>
+      <text x="390" y="28" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--ink)">Next.js</text>
+      <text x="700" y="28" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--cognito)">Cognito</text>
+      <line x1="80" y1="38" x2="80" y2="285" stroke="var(--line)"/>
+      <line x1="390" y1="38" x2="390" y2="285" stroke="var(--line)"/>
+      <line x1="700" y1="38" x2="700" y2="285" stroke="var(--line)"/>
+      <!-- steps -->
+      <g font-size="11.5">
+        <line x1="80" y1="60" x2="390" y2="60" stroke="#4b5563" stroke-width="1.4" marker-end="url(#arw)"/>
+        <text x="235" y="54" text-anchor="middle" fill="var(--ink)">① /wordbook（未ログイン）</text>
+
+        <line x1="390" y1="92" x2="700" y2="92" stroke="#4b5563" stroke-width="1.4" marker-end="url(#arw)"/>
+        <text x="545" y="86" text-anchor="middle" fill="var(--ink)">② /login → Hosted UI へ（state 付与）</text>
+
+        <line x1="700" y1="124" x2="80" y2="124" stroke="#4b5563" stroke-width="1.4" marker-end="url(#arw)"/>
+        <text x="390" y="118" text-anchor="middle" fill="var(--ink)">③ ログイン画面を表示</text>
+
+        <line x1="80" y1="156" x2="700" y2="156" stroke="#4b5563" stroke-width="1.4" marker-end="url(#arw)"/>
+        <text x="390" y="150" text-anchor="middle" fill="var(--ink)">④ ID・パスワード入力</text>
+
+        <line x1="700" y1="188" x2="80" y2="188" stroke="#4b5563" stroke-width="1.4" marker-end="url(#arw)"/>
+        <text x="390" y="182" text-anchor="middle" fill="var(--ink)">⑤ 認可コード + state を返す（/api/auth/callback へ）</text>
+
+        <line x1="80" y1="220" x2="390" y2="220" stroke="#4b5563" stroke-width="1.4" marker-end="url(#arw)"/>
+        <text x="235" y="214" text-anchor="middle" fill="var(--ink)">⑥ callback（state 検証）</text>
+
+        <line x1="390" y1="248" x2="700" y2="248" stroke="#4b5563" stroke-width="1.4" marker-end="url(#arw)"/>
+        <text x="545" y="242" text-anchor="middle" fill="var(--ink)">⑦ コード + secret で JWT に交換</text>
+
+        <line x1="390" y1="280" x2="80" y2="280" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arwGood)"/>
+        <text x="235" y="274" text-anchor="middle" fill="var(--good)" font-weight="700">⑧ JWT を HTTP-only Cookie に格納 ✔</text>
+      </g>
+    </svg>
+    <div class="caption">図2：ログイン画面と本人確認は Cognito が担当。Next.js は最後に JWT を受け取って Cookie に入れるだけ。</div>
+  </div>
+
+  <div class="callout key">
+    <span class="lead">state ってなに？（CSRF 対策）</span>
+    ②で送り、⑤⑥で照合する使い捨ての合言葉です。第三者が偽の認可コードを差し込む攻撃（CSRF）を防ぎます。行きと帰りで合言葉が一致しなければ弾きます。
+  </div>
+
+  <h2>3. ログイン後：毎回 Cookie の JWT を検証するだけ</h2>
+  <p>一度 Cookie に JWT が入れば、以降のページ表示はシンプルです。DB にセッションを問い合わせる必要はありません（＝ステートレス）。</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 780 130" role="img" aria-label="Cookieの JWT を検証してsubでQueryする流れ">
+      <rect x="20" y="40" width="170" height="50" rx="10" fill="var(--web-bg)" stroke="var(--web)"/>
+      <text x="105" y="62" text-anchor="middle" font-size="12">ページ表示リクエスト</text>
+      <text x="105" y="80" text-anchor="middle" font-size="11.5" fill="var(--muted)">Cookie（JWT）付き</text>
+
+      <rect x="250" y="40" width="230" height="50" rx="10" fill="var(--cognito-bg)" stroke="var(--cognito)"/>
+      <text x="365" y="62" text-anchor="middle" font-size="12" fill="var(--cognito)">JWT を jose で検証</text>
+      <text x="365" y="80" text-anchor="middle" font-size="11.5" fill="var(--cognito)">→ sub を取り出す</text>
+
+      <rect x="540" y="40" width="220" height="50" rx="10" fill="var(--good-bg)" stroke="var(--good)"/>
+      <text x="650" y="62" text-anchor="middle" font-size="12" fill="var(--good)">Query(PK = sub)</text>
+      <text x="650" y="80" text-anchor="middle" font-size="11.5" fill="var(--good)">→ そのユーザーの単語 ✔</text>
+
+      <line x1="190" y1="65" x2="248" y2="65" stroke="#4b5563" stroke-width="1.6" marker-end="url(#arw)"/>
+      <line x1="480" y1="65" x2="538" y2="65" stroke="#16a34a" stroke-width="1.8" marker-end="url(#arwGood)"/>
+    </svg>
+    <div class="caption">図3：Cookie の JWT を検証して <code>sub</code> を得て、そのまま <code>Query</code>。認証用 DB へのアクセスは無い。</div>
+  </div>
+
+  <h2>4. MCP と Web の比較（ほぼ同じ）</h2>
+  <table class="cmp">
+    <thead><tr><th></th><th>MCP（Claude Desktop）</th><th>Web（ブラウザ）</th></tr></thead>
+    <tbody>
+      <tr><td>JWT の入手</td><td>OAuth 2.0 PKCE で取得</td><td>OAuth 認可コードフローで取得</td></tr>
+      <tr><td>JWT の運び方</td><td><code>Authorization: Bearer …</code></td><td>HTTP-only Cookie</td></tr>
+      <tr><td>検証（署名・exp・iss・token_use）</td><td colspan="2" style="text-align:center;color:var(--good);font-weight:700">同じ jose モジュールを共用 ✔</td></tr>
+      <tr><td><code>client_id</code> の期待値</td><td><code>COGNITO_MCP_CLIENT_ID</code></td><td><code>COGNITO_WEB_CLIENT_ID</code></td></tr>
+      <tr><td>ユーザー識別</td><td colspan="2" style="text-align:center">JWT の <code>sub</code> をそのまま使う</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout good">
+    <span class="lead">1点だけ注意：client_id の期待値は経路で違う</span>
+    署名・有効期限などの検証は完全に共通ですが、<code>client_id</code>（トークンを発行したアプリの ID）だけは経路で異なります。
+    MCP 用と Web 用で Cognito のアプリクライアントを2つ作るためです。検証関数には「期待する <code>client_id</code>」を引数で渡して切り替えます。
+  </div>
+
+  <h2>5. なぜこの方式がシンプルなのか</h2>
+  <div class="card">
+    <p style="margin-top:0">認証ライブラリ（Better Auth 等）を使う場合と比べ、次のものが<strong>まるごと不要</strong>になります。</p>
+    <ul>
+      <li>❌ 認証用のデータベーステーブル（セッション保存）</li>
+      <li>❌ ライブラリ独自のユーザー ID 管理（→ <code>sub</code> とのズレ調整も不要）</li>
+      <li>❌ DB アダプタの実装</li>
+    </ul>
+    <p style="margin-bottom:0">代わりに使うのは <strong>Cognito の標準エンドポイント2つ（<code>/oauth2/authorize</code>・<code>/oauth2/token</code>）と Cookie、そして MCP と共通の JWT 検証</strong>だけ。学習の本筋（OAuth・JWT 検証を自作する）にも沿います。</p>
+  </div>
+
+  <h2>まとめ（3行で）</h2>
+  <div class="card">
+    <ol class="steps">
+      <li>Cognito が発行する JWT に <code>sub</code> が入っている。Web も MCP もこれを使うので ID はズレない。</li>
+      <li>Web はログインを Cognito に任せ、返ってきた JWT を HTTP-only Cookie に入れるだけ（DB セッション不要）。</li>
+      <li>以降は毎回 Cookie の JWT を検証して <code>sub</code> を取り出し、<code>Query(PK=sub)</code> する。検証は MCP と共通（<code>client_id</code> の期待値だけ経路で切替）。</li>
+    </ol>
+  </div>
+
+</div>
+</body>
+</html>
