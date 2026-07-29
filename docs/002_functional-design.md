@@ -47,7 +47,7 @@ graph LR
 | Cognito ユーザー管理 | セルフサインアップ無効・管理者作成のみ・初回パスワード変更強制 | Cognito（管理者操作） |
 | 閲覧 | 一覧・モーダル・個別ページのレンダリング | Next.js（SST `NextjsSite`） |
 | 永続化 | ユーザー単位の単語データ CRUD、前方一致検索 | DynamoDB |
-| 監視 | Lambda・CloudFront ログ出力 | CloudWatch Logs |
+| 監視 | Lambda ログ出力（CloudFront は標準メトリクスで確認、詳細は003） | CloudWatch Logs |
 
 MCP ツールと Web 閲覧画面は同一の Next.js アプリに統合する。MCP エンドポイントは Next.js の Route Handler（`app/api/mcp/route.ts`）として実装し、共通ミドルウェアチェーンを通過した後、JSON-RPC の `method` フィールドに基づき各ツールハンドラへ分岐する。
 
@@ -191,7 +191,7 @@ sequenceDiagram
   COG-->>NEXT: アクセストークン（JWT）
   NEXT-->>BR: JWT を HTTP-only Cookie に格納し /wordbook へリダイレクト
   BR->>NEXT: GET /wordbook（Cookie 付き）
-  NEXT->>NEXT: Cookie の JWT を検証 → sub 抽出（MCP と同じ jose 検証。client_id 期待値のみ Web 用、詳細は003）
+  NEXT->>NEXT: Cookie の JWT を検証 → sub 抽出（MCP と同一の JWT 検証ロジック。client_id 期待値のみ Web 用、使用ライブラリは003）
   NEXT->>DDB: Query（PK=sub, 全件取得）
   DDB-->>NEXT: 単語一覧（SK順）
   NEXT->>NEXT: createdAt 降順ソート

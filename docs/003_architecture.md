@@ -40,7 +40,7 @@
 
 **認証の役割分担（Cognito 一本化）：** Cognito は「ユーザーの実体・パスワード・OAuth 発行元」を担う唯一の ID プロバイダー。MCP・Web とも Cognito 発行の JWT を Route Handler で `jose` により自前検証する。MCP は Claude Desktop が Bearer トークンで送り、Web は Next.js が OAuth 認可コードフローで取得した JWT を HTTP-only Cookie に保持する（DB セッションは持たない）。両経路とも最終的なユーザー識別子は Cognito の `sub` であり、JWT から直接得られる。
 
-**検証ロジックの共用範囲（重要）：** 署名・`exp`・`iss`・`token_use === "access"` の検証は MCP・Web で完全に共通だが、**`client_id` の期待値だけは経路ごとに異なる**。認可コードフローで発行された Web の JWT は `client_id` が Web クライアント ID になるためである。共用モジュールは `expectedClientId` を引数に取る設計とし、MCP 経路は `COGNITO_MCP_CLIENT_ID`、Web 経路は `COGNITO_WEB_CLIENT_ID` を渡す。
+**検証ロジックの共用範囲（重要）：** 002 が定めた検証項目のうち、署名・`exp`・`iss`・`token_use === "access"` の検証は MCP・Web で完全に共通だが、**`client_id` の期待値だけは経路ごとに異なる**。認可コードフローで発行された Web の JWT は `client_id` が Web クライアント ID になるためである。共用モジュールは `expectedClientId` を引数に取る設計とし、MCP 経路は `COGNITO_MCP_CLIENT_ID`、Web 経路は `COGNITO_WEB_CLIENT_ID` を渡す。
 
 **Cognito アプリクライアントは2つ作成する：** MCP と Web はクライアント種別が異なり、Cognito のアプリクライアントは「シークレット有無」を切り替える単位のため、1つのクライアントで両立できない。
 
@@ -58,7 +58,7 @@
 | 用途 | ライブラリ | バージョン方針 | 選定根拠 |
 | --- | --- | --- | --- |
 | MCP サーバー実装 | `@modelcontextprotocol/sdk` | 最新安定版（`^1`） | MCP over HTTP のトランスポート・ツール登録・JSON-RPC フレーミングを公式実装で担保。Route Handler にマウントして使う |
-| JWT 検証（MCP・Web 共用） | `jose` | `^5` | 002 が定めた検証項目（署名・`exp`・`iss`・`client_id`・`token_use`）を標準 API で実装でき、Lambda 上で軽量に動く。`createRemoteJWKSet` で JWKS キャッシュも標準サポート。MCP の Bearer トークン検証と Web の Cookie 内 JWT 検証で同一モジュールを使う（`client_id` 期待値のみ引数で切替。上記「検証ロジックの共用範囲」参照） |
+| JWT 検証（MCP・Web 共用） | `jose` | 最新安定版（`^6`） | 002 が定めた検証項目を標準 API で実装でき、Lambda 上で軽量に動く。`nodejs24.x` は v6 の動作要件を満たす。`createRemoteJWKSet` で JWKS キャッシュも標準サポート。MCP の Bearer トークン検証と Web の Cookie 内 JWT 検証で同一モジュールを使う（`client_id` 期待値のみ引数で切替。上記「検証ロジックの共用範囲」参照） |
 | DynamoDB クライアント | `@aws-sdk/client-dynamodb` + `@aws-sdk/lib-dynamodb` | AWS SDK v3 | `DynamoDBDocumentClient` で JSON の入出力が容易。Lambda ランタイム同梱版とメジャーを揃え、バンドルサイズを抑える |
 | Web 認証（OAuth コードフロー） | 自前実装（追加ライブラリなし） | — | Cognito の `/oauth2/authorize`・`/oauth2/token` を Next.js の Route Handler から呼ぶだけで完結する。トークン交換は標準 `fetch`、`state` 検証・Cookie 発行も薄い自前コードで足りる。認証ライブラリ（Better Auth 等）は導入しない |
 | バリデーション | `zod` | `^4` | MCP ツール入力（`WordInput` / `Entry` / `prefix`）のスキーマ検証を型と一元化。正規化後の値に対して 002 のバリデーション規則を宣言的に表現 |
@@ -121,9 +121,9 @@ CloudFront はデフォルトで `Authorization` ヘッダを origin に転送�
 | authorization endpoint | Cognito Hosted UI の `/oauth2/authorize` | Cognito（`COGNITO_DOMAIN`） |
 | token endpoint | Cognito の `/oauth2/token` | Cognito |
 | jwks_uri | `{iss}/.well-known/jwks.json`（`iss` は User Pool ID から導出） | Cognito |
-| scopes | `openid` 等、MCP アクセスに必要な最小スコープ | Cognito アプリクライアント設定 |
+| scopes | `openid` のみ（最小）。本設計は `aud` を持たず `client_id`＋`token_use` で認可するため、スコープは認可判定には用いず、ディスカバリ表示とトークン発行のための最小指定に留める（カスタムリソースサーバースコープは作成しない） | Cognito アプリクライアント設定 |
 
-JWT 検証（署名・`exp`・`iss`・`client_id`・`token_use`）のみ自前実装し、上記ディスカバリと JSON-RPC トランスポートは SDK/Cognito に委ねるのが実装境界。
+JWT 検証（検証項目は002。`client_id` の経路別期待値は上記「検証ロジックの共用範囲」）のみ自前実装し、上記ディスカバリと JSON-RPC トランスポートは SDK/Cognito に委ねるのが実装境界。
 
 ## コスト設計
 
