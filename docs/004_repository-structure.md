@@ -33,7 +33,7 @@ ai-wordbook/
 ├─ postcss.config.mjs           # Tailwind（Next.js 標準セットアップ）
 ├─ package.json
 ├─ .gitignore
-├─ docs/                        # 永続ドキュメント（001〜004 が既存、005・006 は今後追加）
+├─ docs/                        # 永続ドキュメント（001〜006 が既存）
 └─ src/
    ├─ middleware.ts             # 入口層。Web 保護ルートの未認証リダイレクト（保護範囲・参照は「モジュール依存の方向」）
    ├─ app/                      # App Router：ルーティングとルート固有 UI
@@ -120,7 +120,7 @@ ai-wordbook/
 - **モジュールをまたぐテスト**：colocation で吸収できない統合／E2E テストが 005 の方針で必要になった場合は、`tests/` 直下に置く（要否・範囲の判断は 005、物理配置のみ本書が定める）。
 - **設定ファイル**：`sst.config.ts`・`next.config.ts`・`tsconfig.json`・`vitest.config.ts`・`postcss.config.mjs`・`package.json` はすべてリポジトリルートに置く。単一プロジェクトのため設定は 1 セットで足りる。
 - **シークレット**：Cognito Web クライアントシークレット等はリポジトリにコミットせず SST の `Secret` で管理する（管理方針は 003）。ローカル用の環境変数ファイルは `.gitignore` 対象とする。
-- **ドキュメント**：永続ドキュメントは既存の `docs/` にとどめる（001〜004 が既存、005・006 は今後追加）。
+- **ドキュメント**：永続ドキュメントは既存の `docs/` にとどめる（001〜006 が既存）。
 
 ## 構造上の確定事項と根拠
 
