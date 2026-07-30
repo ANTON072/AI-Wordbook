@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Wordbook 実装ロードマップ</title>
+<style>
+  body {
+    margin: 0;
+    padding: 32px;
+    background: #1a1a2e;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #e8e8f0;
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #c8c8e8;
+    margin: 0 0 8px;
+  }
+  p.subtitle {
+    font-size: 12px;
+    color: #666688;
+    margin: 0 0 28px;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+  }
+</style>
+</head>
+<body>
+<h1>AI-Wordbook 実装ロードマップ</h1>
+<p class="subtitle">PRD の「MCP 経由の CRUD が一通り動くことを優先」に従い、依存関係順に5ブロックで実装する。</p>
+
+<svg viewBox="0 0 720 600" xmlns="http://www.w3.org/2000/svg" role="img" font-family="system-ui, -apple-system, sans-serif">
+  <title>AI-Wordbook 実装順序図</title>
+  <desc>インフラ→共有ライブラリ→MCPサーバー→Web認証→Web閲覧の順で実装する依存関係図</desc>
+
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#555577"/>
+    </marker>
+  </defs>
+
+  <rect width="720" height="600" fill="#1a1a2e"/>
+
+  <!-- Block 1: インフラ -->
+  <rect x="24" y="20" width="672" height="96" rx="8" fill="#1e2a4a" stroke="#3b6dd4" stroke-width="1.5"/>
+  <text x="40" y="44" font-size="11" fill="#7a9de8" font-weight="700" letter-spacing="0.5">BLOCK 1 — まず最初に（デプロイ基盤）</text>
+
+  <rect x="40" y="54" width="148" height="50" rx="6" fill="#2a3a6a" stroke="#3b6dd4" stroke-width="1.5"/>
+  <text x="114" y="76" font-size="12" text-anchor="middle" fill="#e8f0ff" font-weight="600">SST スタック定義</text>
+  <text x="114" y="92" font-size="10" text-anchor="middle" fill="#9ab0d8">NextjsSite + Secrets</text>
+
+  <rect x="200" y="54" width="148" height="50" rx="6" fill="#2a3a6a" stroke="#3b6dd4" stroke-width="1.5"/>
+  <text x="274" y="76" font-size="12" text-anchor="middle" fill="#e8f0ff" font-weight="600">Cognito 設定</text>
+  <text x="274" y="92" font-size="10" text-anchor="middle" fill="#9ab0d8">2クライアント（MCP/Web）</text>
+
+  <rect x="360" y="54" width="160" height="50" rx="6" fill="#2a3a6a" stroke="#3b6dd4" stroke-width="1.5"/>
+  <text x="440" y="76" font-size="12" text-anchor="middle" fill="#e8f0ff" font-weight="600">DynamoDB テーブル</text>
+  <text x="440" y="92" font-size="10" text-anchor="middle" fill="#9ab0d8">PK=userId, SK=word</text>
+
+  <rect x="532" y="54" width="148" height="50" rx="6" fill="#2a3a6a" stroke="#3b6dd4" stroke-width="1.5"/>
+  <text x="606" y="76" font-size="12" text-anchor="middle" fill="#e8f0ff" font-weight="600">ドメイン / ACM</text>
+  <text x="606" y="92" font-size="10" text-anchor="middle" fill="#9ab0d8">Route53 + CloudFront</text>
+
+  <!-- Arrow 1→2 -->
+  <line x1="360" y1="126" x2="360" y2="155" stroke="#555577" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Block 2: 共有ライブラリ -->
+  <rect x="24" y="165" width="672" height="96" rx="8" fill="#1e3a2e" stroke="#2a9d6e" stroke-width="1.5"/>
+  <text x="40" y="189" font-size="11" fill="#5ec49a" font-weight="700" letter-spacing="0.5">BLOCK 2 — 共有ライブラリ（Block 1 と並行可・ユニットテスト可）</text>
+
+  <rect x="40" y="199" width="148" height="50" rx="6" fill="#1a3a2a" stroke="#2a9d6e" stroke-width="1.5"/>
+  <text x="114" y="221" font-size="12" text-anchor="middle" fill="#e8fff4" font-weight="600">lib/normalize</text>
+  <text x="114" y="237" font-size="10" text-anchor="middle" fill="#7acca4">全角→半角・小文字化</text>
+
+  <rect x="200" y="199" width="160" height="50" rx="6" fill="#1a3a2a" stroke="#2a9d6e" stroke-width="1.5"/>
+  <text x="280" y="221" font-size="12" text-anchor="middle" fill="#e8fff4" font-weight="600">lib/auth/verify-jwt</text>
+  <text x="280" y="237" font-size="10" text-anchor="middle" fill="#7acca4">MCP/Web 共用 JWT 検証</text>
+
+  <rect x="372" y="199" width="160" height="50" rx="6" fill="#1a3a2a" stroke="#2a9d6e" stroke-width="1.5"/>
+  <text x="452" y="221" font-size="12" text-anchor="middle" fill="#e8fff4" font-weight="600">lib/db/repository</text>
+  <text x="452" y="237" font-size="10" text-anchor="middle" fill="#7acca4">CRUD + begins_with</text>
+
+  <rect x="544" y="199" width="136" height="50" rx="6" fill="#1a3a2a" stroke="#2a9d6e" stroke-width="1.5"/>
+  <text x="612" y="221" font-size="12" text-anchor="middle" fill="#e8fff4" font-weight="600">zod スキーマ</text>
+  <text x="612" y="237" font-size="10" text-anchor="middle" fill="#7acca4">WordInput / Entry</text>
+
+  <!-- Arrow 2→3 -->
+  <line x1="360" y1="271" x2="360" y2="300" stroke="#555577" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Block 3: MCP（核心） -->
+  <rect x="24" y="310" width="672" height="96" rx="8" fill="#3a1a1a" stroke="#cc4444" stroke-width="2"/>
+  <rect x="24" y="310" width="672" height="26" rx="8" fill="#cc4444" opacity="0.2"/>
+  <text x="40" y="328" font-size="11" fill="#ff8888" font-weight="700" letter-spacing="0.5">BLOCK 3 — MCP サーバー ★ 最優先・このプロジェクトの核心</text>
+
+  <rect x="40" y="344" width="220" height="50" rx="6" fill="#3a1a1a" stroke="#cc4444" stroke-width="1.5"/>
+  <text x="150" y="366" font-size="12" text-anchor="middle" fill="#ffe8e8" font-weight="600">OAuth ディスカバリ</text>
+  <text x="150" y="382" font-size="10" text-anchor="middle" fill="#cc8888">/.well-known/oauth-protected-resource</text>
+
+  <rect x="274" y="344" width="398" height="50" rx="6" fill="#3a1a1a" stroke="#cc4444" stroke-width="1.5"/>
+  <text x="473" y="366" font-size="12" text-anchor="middle" fill="#ffe8e8" font-weight="600">/api/mcp — 4ツール実装</text>
+  <text x="473" y="382" font-size="10" text-anchor="middle" fill="#cc8888">register / delete / update / search + JWT 検証</text>
+
+  <!-- Arrows 3→4 and 3→5 -->
+  <line x1="210" y1="416" x2="160" y2="450" stroke="#555577" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="510" y1="416" x2="560" y2="450" stroke="#555577" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Block 4: Web 認証 -->
+  <rect x="24" y="460" width="310" height="96" rx="8" fill="#2a1e3a" stroke="#7c4dff" stroke-width="1.5"/>
+  <text x="40" y="484" font-size="11" fill="#a67cff" font-weight="700" letter-spacing="0.5">BLOCK 4 — Web 認証</text>
+
+  <rect x="40" y="494" width="130" height="50" rx="6" fill="#221a30" stroke="#7c4dff" stroke-width="1.5"/>
+  <text x="105" y="516" font-size="12" text-anchor="middle" fill="#e8e0ff" font-weight="600">/login</text>
+  <text x="105" y="532" font-size="10" text-anchor="middle" fill="#9c80cc">state → Cookie → redirect</text>
+
+  <rect x="184" y="494" width="138" height="50" rx="6" fill="#221a30" stroke="#7c4dff" stroke-width="1.5"/>
+  <text x="253" y="516" font-size="12" text-anchor="middle" fill="#e8e0ff" font-weight="600">/api/auth/callback</text>
+  <text x="253" y="532" font-size="10" text-anchor="middle" fill="#9c80cc">code → JWT → Cookie</text>
+
+  <!-- Block 5: Web 閲覧 -->
+  <rect x="386" y="460" width="310" height="96" rx="8" fill="#2a221a" stroke="#d97706" stroke-width="1.5"/>
+  <text x="402" y="484" font-size="11" fill="#f0a030" font-weight="700" letter-spacing="0.5">BLOCK 5 — Web 閲覧</text>
+
+  <rect x="402" y="494" width="130" height="50" rx="6" fill="#221a10" stroke="#d97706" stroke-width="1.5"/>
+  <text x="467" y="516" font-size="12" text-anchor="middle" fill="#fff0d8" font-weight="600">/wordbook</text>
+  <text x="467" y="532" font-size="10" text-anchor="middle" fill="#c09050">一覧（Query by sub）</text>
+
+  <rect x="546" y="494" width="138" height="50" rx="6" fill="#221a10" stroke="#d97706" stroke-width="1.5"/>
+  <text x="615" y="516" font-size="12" text-anchor="middle" fill="#fff0d8" font-weight="600">/wordbook/[word]</text>
+  <text x="615" y="532" font-size="10" text-anchor="middle" fill="#c09050">個別ページ</text>
+
+  <!-- 凡例 -->
+  <rect x="24" y="572" width="12" height="12" rx="2" fill="#3b6dd4"/>
+  <text x="42" y="582" font-size="10" fill="#888">インフラ</text>
+  <rect x="112" y="572" width="12" height="12" rx="2" fill="#2a9d6e"/>
+  <text x="130" y="582" font-size="10" fill="#888">共有ライブラリ</text>
+  <rect x="240" y="572" width="12" height="12" rx="2" fill="#cc4444"/>
+  <text x="258" y="582" font-size="10" fill="#888">MCPコア（最優先）</text>
+  <rect x="382" y="572" width="12" height="12" rx="2" fill="#7c4dff"/>
+  <text x="400" y="582" font-size="10" fill="#888">Web認証</text>
+  <rect x="466" y="572" width="12" height="12" rx="2" fill="#d97706"/>
+  <text x="484" y="582" font-size="10" fill="#888">Web閲覧</text>
+</svg>
+</body>
+</html>
