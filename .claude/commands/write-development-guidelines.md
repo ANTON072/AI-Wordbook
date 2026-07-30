@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Bash(find *), Task
 
 # /write-development-guidelines
 
-PRD(docs/001_product-requirements.md)・機能設計書(docs/002_functional-design.md)・技術仕様書(docs/003_architecture.md)・リポジトリ構造定義書(docs/004_repository-structure.md)をもとに開発ガイドライン(docs/005_development-guidelines.md)を作成する。
+PRD(docs/spec/001_product-requirements.md)・機能設計書(docs/spec/002_functional-design.md)・技術仕様書(docs/spec/003_architecture.md)・リポジトリ構造定義書(docs/spec/004_repository-structure.md)をもとに開発ガイドライン(docs/spec/005_development-guidelines.md)を作成する。
 004 が「コーディング規約・コンポーネントの内部設計/CSS設計・テスト戦略は 005 に委譲」と明記した領域を、**実装者がコードを書くときに「どう書くか」を迷わず判断できる**レベルまで具体化する。003 が確定した技術スタック（TypeScript / Next.js on SST / Tailwind / 単一 Lambda / DynamoDB 単一テーブル）と 004 が確定した物理配置・依存方向（`app → features → lib`）を前提に、その上でのコードの書き方だけを定める。
 
 ## スコープの境界
@@ -28,7 +28,7 @@ PRD(docs/001_product-requirements.md)・機能設計書(docs/002_functional-desi
 
 ### 1. 上位ドキュメントの読み込みと規範方針の壁打ち
 
-- `docs/001_product-requirements.md`・`docs/002_functional-design.md`・`docs/003_architecture.md`・`docs/004_repository-structure.md` を読む。**これら4つは確定した正とし、その内容は疑わない。**
+- `docs/spec/001_product-requirements.md`・`docs/spec/002_functional-design.md`・`docs/spec/003_architecture.md`・`docs/spec/004_repository-structure.md` を読む。**これら4つは確定した正とし、その内容は疑わない。**
 - 003 の技術選定・004 の物理配置と依存方向は繰り返さない。005 が担うのは「その構成の上で、コードをどう書くか」だけである。
 - **最初に、コーディング・テストの規範方針をユーザーから引き出す。** 何を統一し何を各自裁量に委ねるか、テストで何を担保し何をしないか、コンポーネントとCSSをどう組み立てるかについて、ユーザーが既に意向を持っているかを、**選択肢を提示せず開いた質問で聞く**。開発ガイドラインの最上位の規範思想は上位ドキュメントから導出できず、ユーザーの設計思想が正になるため、ここを最初に確定させる。ユーザーに強い意向がなければ、5名規模の学習プロジェクトにふさわしい軽量な規範を提案してそこから壁打ちする。**この最上位の方針を、いきなり選択肢提示で細部から詰め始めてはならない**（枠組み自体がユーザーの持つモデルと食い違い、やり直しになる）。
 - 最上位の規範思想が定まったら、そこに乗る**導出できない細部だけ**を狭い分岐として確認する。**壁打ちは導出できない分岐に絞り、質問は少なく保つ。** 例：
@@ -52,6 +52,6 @@ Read ツールで `.claude/skills/write-development-guidelines/template.md` を�
 
 ### 4. レビューを3周する
 
-`docs/005_development-guidelines.md` の内容を読み、その全文を添えて `development-guidelines-reviewer` エージェントにレビューを依頼する。
+`docs/spec/005_development-guidelines.md` の内容を読み、その全文を添えて `development-guidelines-reviewer` エージェントにレビューを依頼する。
 ユーザーに内容の確認をとって了承を得たらドラフトをレビューの内容で更新する。
 この繰り返しを3周してドキュメントの精度を高める。

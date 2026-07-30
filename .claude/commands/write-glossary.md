@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Bash(find *)
 
 # /write-glossary
 
-PRD(docs/001_product-requirements.md)・機能設計書(docs/002_functional-design.md)・技術仕様書(docs/003_architecture.md)・リポジトリ構造定義書(docs/004_repository-structure.md)・開発ガイドライン(docs/005_development-guidelines.md)を走査し、そこに登場するドメイン用語・UI 用語・コード命名語彙を抽出してユビキタス言語定義(docs/006_glossary.md)を作成する。
+PRD(docs/spec/001_product-requirements.md)・機能設計書(docs/spec/002_functional-design.md)・技術仕様書(docs/spec/003_architecture.md)・リポジトリ構造定義書(docs/spec/004_repository-structure.md)・開発ガイドライン(docs/spec/005_development-guidelines.md)を走査し、そこに登場するドメイン用語・UI 用語・コード命名語彙を抽出してユビキタス言語定義(docs/spec/006_glossary.md)を作成する。
 
 006 は同一概念に対する**表記ゆれを吸収する単一情報源（SSOT）**である。各概念について「正の表記」を1つ定め、混在していた別表記は「別名・禁止表記」に集約する。`docs-integration-reviewer` の用語不統一チェックはこの 006 を正として 001〜005 と照合するため、006 は照合の基準そのものになる。
 
@@ -50,7 +50,7 @@ Read ツールで `.claude/skills/write-glossary/template.md` を読む。
 
 ### 4. ドラフト作成
 
-抽出・決定結果をテンプレートの用語表に流し込み `docs/006_glossary.md` を書く。用語表は1概念1行とし、`正の表記｜定義｜コード識別子｜別名・禁止表記` を埋める。定義は公式ドキュメント・教科書で確認できる語義に留め、対応するコード識別子が無い概念は `—` とする。上位ドキュメントの内容（技術選定・配置・ビジネスルール）は復唱せず、用語の定義に徹する。
+抽出・決定結果をテンプレートの用語表に流し込み `docs/spec/006_glossary.md` を書く。用語表は1概念1行とし、`正の表記｜定義｜コード識別子｜別名・禁止表記` を埋める。定義は公式ドキュメント・教科書で確認できる語義に留め、対応するコード識別子が無い概念は `—` とする。上位ドキュメントの内容（技術選定・配置・ビジネスルール）は復唱せず、用語の定義に徹する。
 文体は `doc-writing-style` スキルの文体規範に従う（特に規範7：内容を復唱せず短い名前＋出典で参照する）。
 
 ### 5. 横断レビュー

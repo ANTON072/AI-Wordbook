@@ -11,7 +11,7 @@ color: green
 ## 入力
 
 呼び出し元からリポジトリ構造定義書の内容がメッセージとして渡される。それをレビュー対象とする。
-PRD(docs/001_product-requirements.md)・機能設計書(docs/002_functional-design.md)・技術仕様書(docs/003_architecture.md)は確定した正であり、リポジトリ構造定義書がそれらと整合し、物理配置として妥当かを見る。
+PRD(docs/spec/001_product-requirements.md)・機能設計書(docs/spec/002_functional-design.md)・技術仕様書(docs/spec/003_architecture.md)は確定した正であり、リポジトリ構造定義書がそれらと整合し、物理配置として妥当かを見る。
 
 ## レビュー観点
 

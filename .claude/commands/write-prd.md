@@ -7,7 +7,7 @@ argument-hint: [アイデアファイル.md]
 
 # /write-prd
 
-プロダクト要求定義書(docs/001_product-requirements.md)を作成する。
+プロダクト要求定義書(docs/spec/001_product-requirements.md)を作成する。
 
 ## 使い方
 
@@ -36,6 +36,6 @@ Read ツールで `.claude/skills/write-prd/template.md` を読む。
 
 ### 4. レビューを3周する
 
-`docs/001_product-requirements.md` の内容を読み、その全文を添えて `prd-reviewer` エージェントにレビューを依頼する。
+`docs/spec/001_product-requirements.md` の内容を読み、その全文を添えて `prd-reviewer` エージェントにレビューを依頼する。
 ユーザーに内容の確認をとって了承を得たらドラフトをレビューの内容で更新する。
 この繰り返しを3周してドキュメントの精度を高める。

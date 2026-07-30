@@ -11,7 +11,7 @@ color: green
 ## 入力
 
 呼び出し元から開発ガイドラインの内容がメッセージとして渡される。それをレビュー対象とする。
-PRD(docs/001_product-requirements.md)・機能設計書(docs/002_functional-design.md)・技術仕様書(docs/003_architecture.md)・リポジトリ構造定義書(docs/004_repository-structure.md)は確定した正であり、開発ガイドラインがそれらと整合し、「どう書くか」の規範として妥当かを見る。
+PRD(docs/spec/001_product-requirements.md)・機能設計書(docs/spec/002_functional-design.md)・技術仕様書(docs/spec/003_architecture.md)・リポジトリ構造定義書(docs/spec/004_repository-structure.md)は確定した正であり、開発ガイドラインがそれらと整合し、「どう書くか」の規範として妥当かを見る。
 
 ## レビュー観点
 

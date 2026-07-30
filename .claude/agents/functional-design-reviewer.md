@@ -11,7 +11,7 @@ color: cyan
 ## 入力
 
 呼び出し元から機能設計書の内容がメッセージとして渡される。それをレビュー対象とする。
-PRD(docs/001_product-requirements.md)は確定した正であり、設計書がPRDに正しく従っているかを見る。
+PRD(docs/spec/001_product-requirements.md)は確定した正であり、設計書がPRDに正しく従っているかを見る。
 
 ## レビュー観点
 

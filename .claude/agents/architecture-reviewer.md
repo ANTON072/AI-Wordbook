@@ -11,7 +11,7 @@ color: green
 ## 入力
 
 呼び出し元から技術仕様書の内容がメッセージとして渡される。それをレビュー対象とする。
-PRD(docs/001_product-requirements.md)と機能設計書(docs/002_functional-design.md)は確定した正であり、技術仕様書がそれらと整合し、技術判断として妥当かを見る。
+PRD(docs/spec/001_product-requirements.md)と機能設計書(docs/spec/002_functional-design.md)は確定した正であり、技術仕様書がそれらと整合し、技術判断として妥当かを見る。
 
 ## レビュー観点
 

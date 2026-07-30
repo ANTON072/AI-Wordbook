@@ -6,14 +6,14 @@ allowed-tools: Read, Write, Bash(find *), Task
 
 # /write-repository-structure
 
-PRD(docs/001_product-requirements.md)・機能設計書(docs/002_functional-design.md)・技術仕様書(docs/003_architecture.md)をもとにリポジトリ構造定義書(docs/004_repository-structure.md)を作成する。
+PRD(docs/spec/001_product-requirements.md)・機能設計書(docs/spec/002_functional-design.md)・技術仕様書(docs/spec/003_architecture.md)をもとにリポジトリ構造定義書(docs/spec/004_repository-structure.md)を作成する。
 003 が「ディレクトリ構造・コンポーネント設計は 004 に委譲」と明記した物理配置を、**新しいファイル・ディレクトリを作る前にどこへ何を置くかを迷わず判断できる**レベルまで具体化する。003 が確定した技術スタック（TypeScript / Next.js on SST / 単一 Lambda / DynamoDB 単一テーブル / Web・MCP 共用モジュール）を前提に、それをディレクトリツリーへ落とす。
 
 ## 手順
 
 ### 1. 上位ドキュメントの読み込みと配置方針の壁打ち
 
-- `docs/001_product-requirements.md`・`docs/002_functional-design.md`・`docs/003_architecture.md` を読む。**これら3つは確定した正とし、その内容は疑わない。**
+- `docs/spec/001_product-requirements.md`・`docs/spec/002_functional-design.md`・`docs/spec/003_architecture.md` を読む。**これら3つは確定した正とし、その内容は疑わない。**
 - 003 が確定した技術選定・ライブラリ・レイヤー分離は繰り返さない。004 が担うのは「その構成をどのディレクトリ・ファイルに配置し、依存をどの向きに流すか」だけである。
 - **最初に、構造の組織原理をユーザーから引き出す。** UI・機能ロジック・共有コードをどう分けるか、コロケーション方針、採用したいディレクトリ規約について、ユーザーが既に意向を持っているかを、**選択肢を提示せず開いた質問で聞く**。リポジトリ構造の最上位の組織規約は上位ドキュメントから導出できないことが多く、ユーザーの設計思想が正になるため、ここを最初に確定させる。ユーザーに強い意向がなければ、推奨骨格を提案してそこから壁打ちする。**この最上位の規約を、いきなり選択肢提示で細部から詰め始めてはならない**（枠組み自体がユーザーの持つモデルと食い違い、やり直しになる）。
 - 最上位の組織原理が定まったら、そこに乗る**導出できない細部だけ**を狭い分岐として確認する。**壁打ちは導出できない分岐に絞り、質問は少なく保つ。** 例：
@@ -37,6 +37,6 @@ Read ツールで `.claude/skills/write-repository-structure/template.md` を読
 
 ### 4. レビューを3周する
 
-`docs/004_repository-structure.md` の内容を読み、その全文を添えて `repository-structure-reviewer` エージェントにレビューを依頼する。
+`docs/spec/004_repository-structure.md` の内容を読み、その全文を添えて `repository-structure-reviewer` エージェントにレビューを依頼する。
 ユーザーに内容の確認をとって了承を得たらドラフトをレビューの内容で更新する。
 この繰り返しを3周してドキュメントの精度を高める。
