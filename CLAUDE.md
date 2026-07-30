@@ -35,3 +35,8 @@ AI英単語帳アプリ。ユーザーが手元のClaudeアプリからmcpを介
 ## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
+## Warning
+
+- 社内規定のため Claude Code の Hook を利用することはできません。
+- 社内規定のため外部 MCP を利用することはできません。
