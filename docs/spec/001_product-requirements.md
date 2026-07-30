@@ -39,7 +39,7 @@ MCP サーバーの自作を通じて Claude × AWS の統合を学ぶ個人プ�
 
 ### プライマリーペルソナ
 
-管理者（作者）が招待した限定ユーザー。初期は作者本人を含め 5 名以内。
+管理者（作者）が招待した限定ユーザー。初期は管理者本人を含め 5 名以内。
 Claude Desktop を日常的に使い、英語記事を読む中で知らない単語に出会ったとき、会話の流れでそのままメモとして登録したい中〜上級学習者。
 
 **ユーザーストーリー（代表例）：** 英語記事を読んでいて `reliable` という単語に出会う → Claude Desktop で「reliable を単語帳に登録して」と発話 → Claude が品詞・和訳・例文を生成し `register_word` を実行 → 返却された個別ページ URL で登録内容を確認する。
@@ -54,7 +54,7 @@ Claude Desktop を日常的に使い、英語記事を読む中で知らない�
 
 - **辞書情報の生成主体**：Claude Desktop（MCP 呼び出し側の LLM）。Claude との会話の中で和訳・品詞・例文を生成し、生成した辞書情報を MCP ツールに渡して保存する。MCP サーバーはデータを受け取って永続化するだけで、サーバー側からは Claude API を呼ばない。
 - **MCP トランスポート**：リモート HTTP（stdio ではない）。Web 閲覧画面と同一のサーバーに統合する（物理配置の詳細は[機能設計書（002）](./002_functional-design.md)・[技術仕様書（003）](./003_architecture.md)を参照）。
-- **ユーザー認証**：OAuth 2.0 PKCE（Cognito 連携）。Claude Desktop が初回起動時に Cognito Hosted UI へリダイレクト → アクセストークン（JWT）を取得 → 以降のリクエストはアクセストークンを Bearer で送信。MCP サーバーは Cognito 発行のアクセストークンを検証し、`sub` クレームをユーザー ID として使用する（検証詳細は[機能設計書（002）](./002_functional-design.md)を参照）。トークン失効時は Claude Desktop 側で Cognito Hosted UI 再認証を促す。
+- **ユーザー認証**：OAuth 2.0 PKCE（Cognito 連携）。Claude Desktop が初回起動時に Cognito Hosted UI へリダイレクト → アクセストークン（JWT）を取得 → 以降のリクエストはアクセストークンを Bearer で送信。MCP サーバーは Cognito 発行のアクセストークンを検証し、`sub` クレームをユーザー識別子として使用する（検証詳細は[機能設計書（002）](./002_functional-design.md)を参照）。トークン失効時は Claude Desktop 側で Cognito Hosted UI 再認証を促す。
 
 #### 単語の正規化ルール
 
@@ -189,17 +189,8 @@ Claude Desktop から以下の操作を自然言語で実行できる。
 ### 対応環境
 
 - Web：モダンブラウザ（Chrome / Safari / Firefox 最新版）
-- MCP：Claude Desktop App（Mac）
+- MCP：Claude Desktop（Mac）
 
 ## 技術スタック
 
-| 領域 | 技術 |
-| --- | --- |
-| 言語 | TypeScript |
-| インフラ | AWS / SST |
-| フロントエンド / MCP サーバー | Next.js（Web 閲覧画面 + MCP API ルートを統合） |
-| 認証（MCP） | Amazon Cognito（Hosted UI + OAuth 2.0 PKCE） |
-| 認証（Web） | Cognito（OAuth 2.0 認可コードフロー）＋ Next.js 自前実装（取得した JWT を HTTP-only Cookie で保持。検証方式の詳細は[技術仕様書（003）](./003_architecture.md)を参照） |
-| データベース | Amazon DynamoDB |
-| ホスティング | SST NextjsSite（OpenNext + CloudFront + Lambda） |
-| LLM（将来の音声） | OpenAI API（次フェーズ） |
+技術スタックの詳細な選定根拠・一覧は[技術仕様書（003）](./003_architecture.md)を参照。
