@@ -50,4 +50,5 @@
 ## 進捗状況
 
 - 2026-07-30 作業開始。AWS SSO ログイン完了。
-- 2026-07-30 SST 4.17.1 インストール、next.config.ts 更新（output: standalone）、sst.config.ts 新規作成（DynamoDB・Cognito・NextjsSite）、.env.local.example 作成、.gitignore 更新（.sst 追加）完了。次は [HUMAN] タスク: `npx sst deploy --stage production`。
+- 2026-07-30 SST 4.17.1 インストール、next.config.ts 更新（output: standalone）、sst.config.ts 新規作成（DynamoDB・Cognito・NextjsSite）、.env.local.example 作成、.gitignore 更新（.sst 追加）完了。
+- 2026-07-30 初回デプロイを試みた。UserPool・DynamoDB・CloudFront・Route53 レコード・ACM 証明書はすべて作成済み。sst.config.ts の型エラー修正（`userPool.domainUrl!`、`sst.Secret` 削除・`webClient.secret` 直接参照）完了。次回 `npx sst deploy --stage production` を再実行すれば完了するはず。

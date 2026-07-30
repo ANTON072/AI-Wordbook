@@ -25,9 +25,11 @@ export default $config({
 
     const userPool = new sst.aws.CognitoUserPool("UserPool", {
       usernames: ["email"],
+      // Cognito prefix domain for Hosted UI
+      domain: { prefix: "ai-wordbook" },
       transform: {
         userPool: {
-          // Cognito のセルフサインアップを無効化（管理者による手動作成のみ）
+          // 管理者によるユーザー手動作成のみ許可（セルフサインアップ無効）
           adminCreateUserConfig: { allowAdminCreateUserOnly: true },
           passwordPolicy: {
             minimumLength: 8,
@@ -41,33 +43,18 @@ export default $config({
       },
     });
 
-    const userPoolDomain = new aws.cognito.UserPoolDomain("UserPoolDomain", {
-      domain: "ai-wordbook",
-      userPoolId: userPool.id,
-    });
-
-    // MCP 用: パブリッククライアント（シークレット無し）/ PKCE
+    // MCP 用: パブリッククライアント（シークレット無し / PKCE）
     const mcpClient = userPool.addClient("McpClient", {
-      scopes: ["openid"],
       callbackUrls: ["http://127.0.0.1"],
-      grantTypes: ["authorization_code"],
-      supportedIdentityProviders: ["COGNITO"],
     });
 
-    // Web 用: コンフィデンシャルクライアント（シークレット有）/ 認可コードフロー
+    // Web 用: コンフィデンシャルクライアント（シークレット有 / 認可コードフロー）
     const webClient = userPool.addClient("WebClient", {
-      scopes: ["openid"],
       callbackUrls: ["https://ai-wordbook.com/api/auth/callback"],
-      grantTypes: ["authorization_code"],
-      supportedIdentityProviders: ["COGNITO"],
       transform: {
         client: { generateSecret: true },
       },
     });
-
-    // Cognito が生成した Web クライアントシークレットを SST Secret で管理
-    // デプロイ後に `sst secret set CognitoWebClientSecret <value>` で値を設定する
-    const webClientSecret = new sst.Secret("CognitoWebClientSecret");
 
     const site = new sst.aws.Nextjs("Site", {
       domain: "ai-wordbook.com",
@@ -75,8 +62,9 @@ export default $config({
         COGNITO_USER_POOL_ID: userPool.id,
         COGNITO_MCP_CLIENT_ID: mcpClient.id,
         COGNITO_WEB_CLIENT_ID: webClient.id,
-        COGNITO_WEB_CLIENT_SECRET: webClientSecret.value,
-        COGNITO_DOMAIN: $interpolate`https://${userPoolDomain.domain}.auth.ap-northeast-1.amazoncognito.com`,
+        // Cognito が生成したクライアントシークレットを直接参照
+        COGNITO_WEB_CLIENT_SECRET: webClient.secret,
+        COGNITO_DOMAIN: userPool.domainUrl!,
         DYNAMODB_TABLE_NAME: wordbook.name,
         APP_BASE_URL: "https://ai-wordbook.com",
       },
