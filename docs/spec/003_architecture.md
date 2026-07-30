@@ -65,7 +65,7 @@
 
 | 用途 | ライブラリ | バージョン方針 | 選定根拠 |
 | --- | --- | --- | --- |
-| MCP サーバー実装 | `@modelcontextprotocol/sdk` | 最新安定版（`^1`） | リモート HTTP のトランスポート・ツール登録・JSON-RPC フレーミングを公式実装で担保。Route Handler にマウントして使う |
+| MCP サーバー実装 | `@modelcontextprotocol/sdk` | 最新安定版（`^1`） | リモート HTTP のトランスポート・ツール登録・JSON-RPC フレーミングを公式実装で担保。Route Handler にマウントして使う。2026-07-28 仕様のステートレス化（セッションハンドシェイク廃止）対応済み。インストール時は `pnpm add @modelcontextprotocol/sdk@latest` で明示的に最新版を取得すること |
 | JWT 検証（MCP・Web 共用） | `jose` | 最新安定版（`^6`） | 002 が定めた検証項目を標準 API で実装でき、Lambda 上で軽量に動く。`nodejs24.x` は v6 の動作要件を満たす。`createRemoteJWKSet` で JWKS キャッシュも標準サポート。MCP のアクセストークン検証と Web の Cookie 内 JWT 検証で同一モジュールを使う（`client_id` 期待値のみ引数で切替。上記「検証ロジックの共用範囲」参照） |
 | DynamoDB クライアント | `@aws-sdk/client-dynamodb` + `@aws-sdk/lib-dynamodb` | AWS SDK v3 | `DynamoDBDocumentClient` で JSON の入出力が容易。Lambda ランタイム同梱版とメジャーを揃え、バンドルサイズを抑える |
 | Web 認証（OAuth コードフロー） | 自前実装（追加ライブラリなし） | — | Cognito の `/oauth2/authorize`・`/oauth2/token` を Next.js の Route Handler から呼ぶだけで完結する。トークン交換は標準 `fetch`、`state` 検証・Cookie 発行も薄い自前コードで足りる。認証ライブラリ（Better Auth 等）は導入しない |
@@ -120,6 +120,7 @@ CloudFront はデフォルトで `Authorization` ヘッダを origin に転送�
 | キャッシュポリシー | 無効（`CachingDisabled` 相当） | 認証付き動的レスポンスを誤キャッシュしない |
 | オリジンリクエストポリシー | `Authorization` を含むヘッダを origin へ転送 | アクセストークン（Bearer）を Lambda に到達させる |
 | 許可メソッド | `POST`（`GET`/`HEAD` 含む） | MCP は JSON-RPC over POST |
+| `Mcp-Method`・`Mcp-Name` ヘッダー転送 | origin へ転送 | 2026-07-28 仕様で追加されたルーティングヘッダー。ゲートウェイが JSON ボディを解析せずルーティング・メータリングできる |
 
 `/.well-known/oauth-protected-resource`（後述の OAuth ディスカバリ）も Next.js のサーバールートであり、オリジン（Lambda）へ転送し長期キャッシュしない。ディスカバリ経路と `/api/mcp` はいずれも「サーバー関数へ転送・キャッシュ無効」で統一する。
 
@@ -136,6 +137,15 @@ CloudFront はデフォルトで `Authorization` ヘッダを origin に転送�
 | scopes | `openid` のみ（最小）。本設計は `aud` を持たず `client_id`＋`token_use` で認可するため、スコープは認可判定には用いず、ディスカバリ表示とトークン発行のための最小指定に留める（カスタムリソースサーバースコープは作成しない） | Cognito アプリクライアント設定 |
 
 JWT 検証（検証項目は002。`client_id` の経路別期待値は上記「検証ロジックの共用範囲」）のみ自前実装し、上記ディスカバリと JSON-RPC トランスポートは SDK/Cognito に委ねるのが実装境界。
+
+**2026-07-28 仕様の変更点と本プロジェクトへの影響：**
+
+| 変更点 | 本プロジェクトへの影響 |
+| --- | --- |
+| **ステートレス化**：`initialize`/`initialized` ハンドシェイクと `Mcp-Session-Id` ヘッダーが廃止され、各リクエストが独立して処理される | SDK 最新版で対応済み。アプリ実装側の変更不要 |
+| **DCR → CIMD 移行**：Dynamic Client Registration が廃止され、Client ID Metadata Documents（CIMD）に移行。CIMD はクライアントがメタデータドキュメントを配信する方式 | Cognito は元々 DCR を実装していない。CIMD はクライアント（Claude Desktop）側が担うため、サーバー実装への影響なし |
+| **RFC 9207 `iss` 検証の必須化**：認可レスポンスに `iss` クエリパラメータが含まれること・クライアントが検証することが必須化 | JWT の `iss` クレーム検証（002 仕様）はサーバー側で既に実装範囲。認可レスポンスの `iss` は Claude Desktop SDK が検証する。**Cognito が認可レスポンスに RFC 9207 準拠の `iss` クエリパラメータを返すかは MCP 実装時の接続確認で検証すること**（後述「制約事項」参照） |
+| **`localhost` リダイレクト URI**：`application_type: native` 指定で `localhost` リダイレクトが公式にサポート | Cognito MCP 用クライアントに `http://127.0.0.1` 登録済み（上記「Claude Desktop のリダイレクト URI」参照）。追加変更不要 |
 
 ## コスト設計
 
@@ -228,3 +238,4 @@ Web 認証は Cookie 内 JWT のステートレス方式で認証用テーブル
 - **Web トークンのリフレッシュ未実装**：Web は Cognito アクセストークン（JWT）を Cookie に持つステートレス方式。アクセストークンの有効期限が切れると再ログインが必要になる（リフレッシュトークンによる自動更新は本フェーズでは実装しない）。PRD の「セッション失効時はログインページへリダイレクト」に準拠。体験を途切れさせたくなくなった段階でリフレッシュトークン運用へ拡張できる。
 - **Cookie ベース認証の考慮**：JWT を HTTP-only Cookie に載せるため、CSRF 対策（`SameSite=Lax`）・認可コードフローの `state` 検証・Cookie サイズ（4KB 制限）に留意する。認証用 DB を持たない代わりに、失効の即時強制（サーバー側でのセッション無効化）はできない点はトレードオフ（`exp` 到達で自然失効）。
 - **DynamoDB `Query` の 1MB 上限・ページネーション未実装**：Web 一覧の全件取得と `search_words` の全一致取得は、DynamoDB の 1リクエスト 1MB 上限に依存する。1ユーザーあたり数百語・1件あたり数 KB（品詞エントリ＋例文）を想定すると 1MB に十分収まるため、`LastEvaluatedKey` によるページング継続は実装しない。想定を大きく超える語数を登録したユーザーでは一覧・検索が途中までしか返らない制約があるが、5名・個人利用の規模では発生しない前提とする。
+- **Cognito と RFC 9207 `iss` の互換性（要確認）**：MCP 2026-07-28 仕様で Claude Desktop SDK が認可レスポンスの `iss` クエリパラメータ検証を必須とするようになった。Cognito の認可エンドポイントがこのパラメータを返さない場合、OAuth フローが失敗する可能性がある。MCP エンドポイント実装後の初回接続テストで確認し、問題があれば `@modelcontextprotocol/sdk` の設定でのスキップ可否または Cognito 側の設定変更を調査すること。

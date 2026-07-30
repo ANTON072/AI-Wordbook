@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "biome check",
     "lint:write": "biome check --write",
-    "ci": "biome ci"
+    "ci": "biome ci",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm lint && pnpm test && pnpm typecheck"
   },
   "dependencies": {
     "next": "16.2.12",
@@ -17,11 +20,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
+    "@next/env": "^16.2.12",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

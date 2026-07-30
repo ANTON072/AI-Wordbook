@@ -88,6 +88,43 @@
 
 **カバレッジ数値目標は置かない。** 到達率を指標にすると、価値の低いテストを数合わせで書く誘因になる。判断基準は「上記の振る舞いのある境界が試験されているか」であり、行網羅率ではない。
 
+## ローカル開発の環境変数
+
+### ファイル別の役割
+
+Next.js は `.env*` ファイルを組み込みサポートするため、`dotenv` パッケージは不要。
+
+| ファイル | 用途 | Git |
+| --- | --- | --- |
+| `.env.local` | ローカル開発時の実値（Cognito ID・シークレット等） | 除外（`.gitignore`） |
+| `.env.local.example` | ローカル設定のひな型。変数名のみ列挙し値は空にする | コミットする |
+| `.env.test` | テスト実行時のデフォルト値（テーブル名・リージョン等） | コミットする（シークレットを含まない） |
+
+**`NODE_ENV=test` のとき `.env.local` はロードされない**（Next.js の仕様）。テスト専用の値は `.env.test` に書く。
+
+### ローカル起動
+
+SST は本番環境のみ運用するため（stage `production` のみという方針は 003 参照）、ローカルで Web 画面や Route Handler を動かすには `.env.local` に実値を設定して起動する。
+
+```sh
+cp .env.local.example .env.local
+# .env.local に 003 の環境変数一覧の実値を記入する
+pnpm dev
+```
+
+`.env.local.example` に列挙する変数は [003 の環境変数一覧](./003_architecture.md) の全項目とする。`AWS_REGION` は Lambda では予約変数だが、ローカルでは `ap-northeast-1` を明示する。`APP_BASE_URL` はローカルでは `http://localhost:3000` を指定する。
+
+### テストでの環境変数（vitest）
+
+vitest のセットアップファイル（`src/test/setup.ts`）で `@next/env` の `loadEnvConfig` を呼ぶ。これにより `.env.test` → `.env` の優先順で変数が注入される。`@next/env` は `next` の依存に含まれるため追加インストール不要。
+
+```ts
+import { loadEnvConfig } from '@next/env'
+loadEnvConfig(process.cwd())
+```
+
+DynamoDB Local のテーブル名や AWS リージョン等、テスト固有の値は `.env.test` に置く。テスト実行が実際の AWS リソースに接続しないよう、実値は持たせない。
+
 ## 確定事項と根拠
 
 | 決定 | 根拠 |
@@ -101,3 +138,5 @@
 | レイアウトは配置の次元で選ぶ（2 次元＝Grid・1 次元＝Flex、既定は Grid） | 配置次元で機械的に選べるようにし、選択の揺れを減らす |
 | 結合テスト重視・DynamoDB Local を使用 | 条件式（冪等・存在前提）の分岐という本アプリの要は、実クエリの振る舞いでしか担保できない |
 | カバレッジ数値目標を置かない | 到達率目標が誘発する数合わせテストを避け、振る舞いの試験に集中する |
+| `dotenv` パッケージを使わず Next.js 組み込みの `.env*` ローディングに委ねる | Next.js が `dotenv` を内包しており、別途インストール・設定すると二重管理になる |
+| テストセットアップ（`src/test/setup.ts`）で `@next/env` の `loadEnvConfig` を呼ぶ | Next.js と同じロード順序・優先規則を vitest でも再現し、環境差異によるテスト不整合を防ぐ |
