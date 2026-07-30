@@ -44,3 +44,6 @@ next-env.d.ts
 
 # sst
 .sst
+.open-next
+memo.md
+!/**/*/memo.md

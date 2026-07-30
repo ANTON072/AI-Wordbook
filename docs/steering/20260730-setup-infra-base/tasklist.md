@@ -13,11 +13,11 @@
 - [x] `sst.config.ts` に `NextjsSite`（ドメイン `ai-wordbook.com`・003 の環境変数一覧を SST リソース参照から注入・DynamoDB 最小権限）を追加
 - [x] `.env.local.example` を新規作成（[003 の環境変数一覧](../../spec/003_architecture.md#環境変数一覧) の全項目を空値で列挙）
 - [x] `.gitignore` に `.env.local` が除外指定されているか確認し、`.sst` ディレクトリを追加（`.env*` パターンで `.env.local` はカバー済み）
-- [ ] **[HUMAN]** `npx sst deploy --stage production` を実行 → 正常終了したら報告してください（初回は ACM 証明書の DNS 検証・CloudFront 配布で 10〜20 分かかります）
-- [ ] **[HUMAN]** デプロイ出力から各 Cognito クライアント ID・User Pool ID・ドメインを `.env.local` に設定し、ローカルで `pnpm dev` が起動することを確認 → 完了したら報告してください
-- [ ] **[HUMAN]** `https://ai-wordbook.com` にブラウザでアクセスし、Next.js ページが表示されることを確認 → 確認できたら報告してください
-- [ ] **[HUMAN]** Cognito コンソールでテスト用ユーザー（管理者本人）を手動作成し、初回パスワード変更を完了させる → 完了したら報告してください
-- [ ] **[HUMAN]** AWS Budgets コンソールで月額 500 円超過アラートを設定 → 完了したら報告してください
+- [x] **[HUMAN]** `npx sst deploy --stage production` を実行 → 正常終了したら報告してください（初回は ACM 証明書の DNS 検証・CloudFront 配布で 10〜20 分かかります）
+- [x] **[HUMAN]** デプロイ出力から各 Cognito クライアント ID・User Pool ID・ドメインを `.env.local` に設定し、ローカルで `pnpm dev` が起動することを確認 → 完了したら報告してください
+- [x] **[HUMAN]** `https://ai-wordbook.com` にブラウザでアクセスし、Next.js ページが表示されることを確認 → 確認できたら報告してください
+- [x] **[HUMAN]** Cognito コンソールでテスト用ユーザー（管理者本人）を手動作成し、初回パスワード変更を完了させる → 完了したら報告してください
+- [x] **[HUMAN]** AWS Budgets コンソールで月額 500 円超過アラートを設定 → 完了したら報告してください
 
 ## テスト
 
@@ -25,30 +25,31 @@
      受け入れ条件の確認が検証を兼ねる。write-tests スキルを参照したが、今回はデプロイ検証が主であり
      新規アプリコードがないため自動テスト項目はなし。 -->
 
-- [ ] AWS コンソールで DynamoDB テーブル `Wordbook` が `ap-northeast-1` に存在することを確認（受け入れ条件 1）
-- [ ] AWS コンソールで Cognito User Pool に 2 クライアントが存在することを確認（受け入れ条件 4）
-- [ ] `https://ai-wordbook.com` が 200 を返すことをブラウザで確認（受け入れ条件 3）
+- [x] AWS コンソールで DynamoDB テーブル `Wordbook` が `ap-northeast-1` に存在することを確認（受け入れ条件 1）
+- [x] AWS コンソールで Cognito User Pool に 2 クライアントが存在することを確認（受け入れ条件 4）
+- [x] `https://ai-wordbook.com` が 200 を返すことをブラウザで確認（受け入れ条件 3）
 
 ## コードレビューループ
 
 <!-- 今回のレビュー対象は sst.config.ts（IAM 最小権限設定・環境変数注入の正確さ・SST リソース参照の適切さ）。
      アプリロジックは含まないため、implementation-guide スキルではなく IAM・セキュリティ観点を中心に見る。 -->
 
-- [ ] **1周目**: `code-reviewer` エージェントを起動 → 指摘一覧をユーザーに提示
+- [x] **1周目**: `code-reviewer` エージェントを起動 → 指摘一覧をユーザーに提示
   - 重大度高（セキュリティ・層境界違反）: 自動修正
   - 判断が分かれる指摘: ユーザーに確認してから対応
-- [ ] **2周目以降**: 残存指摘がなくなるまで繰り返す（各周、修正内容をユーザーに提示）
-- [ ] 対応困難な指摘はその理由をユーザーに報告
-- [ ] 全指摘への対応完了（残存指摘ゼロ、または対応困難分をユーザーに報告済み）✅
+- [x] **2周目以降**: 残存指摘がなくなるまで繰り返す（各周、修正内容をユーザーに提示）
+- [x] 対応困難な指摘はその理由をユーザーに報告
+- [x] 全指摘への対応完了（残存指摘ゼロ、または対応困難分をユーザーに報告済み）✅
 
 ## 品質チェック
 
-- [ ] `pnpm check`（lint・format・test・typecheck の一括実行）を実行
+- [x] `pnpm check`（lint・format・test・typecheck の一括実行）を実行
   - エラーがあれば自動修正して再実行し、all green になるまで繰り返す
-- [ ] `pnpm check` all green ✅
+- [x] `pnpm check` all green ✅
 
 ## 進捗状況
 
 - 2026-07-30 作業開始。AWS SSO ログイン完了。
 - 2026-07-30 SST 4.17.1 インストール、next.config.ts 更新（output: standalone）、sst.config.ts 新規作成（DynamoDB・Cognito・NextjsSite）、.env.local.example 作成、.gitignore 更新（.sst 追加）完了。
 - 2026-07-30 初回デプロイを試みた。UserPool・DynamoDB・CloudFront・Route53 レコード・ACM 証明書はすべて作成済み。sst.config.ts の型エラー修正（`userPool.domainUrl!`、`sst.Secret` 削除・`webClient.secret` 直接参照）完了。次回 `npx sst deploy --stage production` を再実行すれば完了するはず。
+- 2026-07-30 全タスク・テスト完了。DynamoDB・Cognito（2クライアント）・https://ai-wordbook.com・Cognito テストユーザー・AWS Budgets アラートすべて確認済み。

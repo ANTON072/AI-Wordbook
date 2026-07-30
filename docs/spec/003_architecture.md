@@ -204,8 +204,8 @@ Web 認証は Cookie 内 JWT のステートレス方式で認証用テーブル
 
 ### シークレット・認証情報管理
 
-- Cognito Web クライアントのシークレットは SST の `Secret` で管理し、リポジトリにコミットしない。
-- Lambda へは SST 経由で環境変数として注入する（値そのものはビルド成果物・IaC 定義に平文で残さない）。
+- Cognito Web クライアントのシークレットは SST リソース参照（`webClient.secret`）でデプロイ時に解決し、リポジトリにコミットしない。Cognito が自動生成する値のため、SST Secret（SSM Parameter Store）への二重登録は行わない。
+- Lambda へは SST 経由で環境変数として注入する。Lambda 環境変数には平文で格納されるが、Cognito 生成値を SSM に複製する運用負荷を避けるための選択による（[制約事項](#制約事項既知のトレードオフ)参照）。
 - MCP は Cognito 発行のアクセストークンを検証するのみで、クライアントシークレットを持たない（PKCE のため不要）。Cognito クライアントシークレットは Web の OAuth コードフロー（サーバーサイドのトークン交換）でのみ使用する。
 - Claude API はサーバー側から呼ばないため、LLM の API キーをサーバーに持たない（PRD セキュリティ要件に準拠）。次フェーズの OpenAI API キーも本フェーズでは導入しない。
 
@@ -216,7 +216,7 @@ Web 認証は Cookie 内 JWT のステートレス方式で認証用テーブル
 | `COGNITO_USER_POOL_ID` | JWKS 取得・`iss` 組み立ての基点 | `ap-northeast-1_XXXXXXXXX` | SST |
 | `COGNITO_MCP_CLIENT_ID` | MCP トークンの `client_id` 検証の期待値（パブリック／PKCE クライアント） | 文字列 | SST |
 | `COGNITO_WEB_CLIENT_ID` | Web OAuth コードフローのクライアント（コンフィデンシャル）＋ Web 経路 JWT の `client_id` 検証の期待値 | 文字列 | SST |
-| `COGNITO_WEB_CLIENT_SECRET` | Web OAuth コードフローのトークン交換 | シークレット文字列 | SST Secret |
+| `COGNITO_WEB_CLIENT_SECRET` | Web OAuth コードフローのトークン交換 | シークレット文字列 | SST（リソース参照） |
 | `COGNITO_DOMAIN` | Cognito Hosted UI ドメイン（Web ログインリダイレクト・authorize/token エンドポイント基点） | `https://{prefix}.auth.ap-northeast-1.amazoncognito.com` | SST |
 | `DYNAMODB_TABLE_NAME` | 単語テーブル名 | `Wordbook` | SST（リソース参照） |
 | `AWS_REGION` | SDK リージョン | `ap-northeast-1` | Lambda ランタイム（予約変数） |
@@ -230,6 +230,7 @@ Web 認証は Cookie 内 JWT のステートレス方式で認証用テーブル
 
 ## 制約事項・既知のトレードオフ
 
+- **Web クライアントシークレットの Lambda 環境変数格納**：Cognito が自動生成するシークレットは SST リソース参照で取得し Lambda 環境変数に注入するため、`lambda:GetFunctionConfiguration` 権限を持つ主体には平文で見える。SSM Parameter Store への二重登録を避ける判断によるトレードオフ。AWS アカウントへのアクセス管理（最小権限 IAM）で補完する。
 - **コールドスタートの初回遅延**：Provisioned Concurrency を使わないため、アイドル後の初回リクエストで1〜2秒の遅延が発生しうる。5名・低頻度の利用前提で許容する（PRD 明記事項）。
 - **PITR 無効**：DynamoDB のポイントインタイムリカバリを無効化しているため、誤削除・障害からの復旧手段はない。個人学習データであり許容する。
 - **リージョン固定**：`ap-northeast-1`（東京）に固定（例外：ACM 証明書のみ CloudFront 要件で `us-east-1`、Route53 はグローバル）。マルチリージョン冗長化・災害復旧は本フェーズでは行わない。

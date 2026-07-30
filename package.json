@@ -9,7 +9,7 @@
     "lint": "biome check",
     "lint:write": "biome check --write",
     "ci": "biome ci",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "check": "pnpm lint && pnpm test && pnpm typecheck"
   },
