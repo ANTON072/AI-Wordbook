@@ -7,11 +7,24 @@
 
 - [ ]
 
+## コードレビューループ
+
+<!-- 実装タスクが全て完了したら、以下の3周ループを実行する。
+     各周で code-reviewer エージェントを起動し、指摘事項を全て自動修正する。
+     3周完了後、修正できなかった事項はユーザーに報告してから品質チェックに進む。 -->
+
+- [ ] **1周目**: `code-reviewer` エージェントを起動 → 指摘事項を全て自動修正
+- [ ] **2周目**: `code-reviewer` エージェントを起動 → 指摘事項を全て自動修正
+- [ ] **3周目**: `code-reviewer` エージェントを起動 → 指摘事項を全て自動修正
+- [ ] 3周後も修正できなかった事項をユーザーに報告
+
+## 品質チェック
+
+<!-- コードレビューループ完了後、`pnpm check` が all green になるまで繰り返す。
+     エラーが残る場合は自動修正して再実行する。この行は削除しない。 -->
+
+- [ ] `pnpm check`（lint・format・test・typecheck の一括実行）を実行
+  - エラーがあれば自動修正して再実行し、all green になるまで繰り返す
+- [ ] `pnpm check` all green ✅
+
 ## 進捗状況
-
-## 完了条件
-
-<!-- 完了条件には必ず `pnpm check` の all green を含める。この行は削除しない。
-     pnpm check は lint・format・test・typecheck を一括実行するコマンド。all green でない限り作業は完了としない。 -->
-
-- [ ] `pnpm check`（lint・format・test・typecheck の一括実行）が all green
