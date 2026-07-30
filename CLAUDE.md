@@ -23,3 +23,15 @@ AI英単語帳アプリ。ユーザーが手元のClaudeアプリからmcpを介
 |[004_リポジトリ構造定義書](./docs/spec/004_repository-structure.md)|新しいファイル・ディレクトリを作る前|
 |[005_開発ガイドライン](./docs/spec/005_development-guidelines.md)|コードレビュー・コーディング規約に関する判断の前|
 |[006_ユビキタス言語定義（共通言語）](./docs/spec/006_glossary.md)|変数名・用語の命名に迷った時|
+
+## 作業単位ドキュメント（ステアリング）
+
+1回の開発作業（機能追加・バグ修正・改善など）で「今回何をするか」を定義するファイル。永続的ドキュメント(`docs/spec/`)が基本設計を定める恒久ファイルなのに対し、ステアリングファイル(`docs/steering/`)は作業単位で作り、完了後は参照用として保持する。この2種類でライフサイクルを分離する。
+
+機能追加・バグ修正・改善など**新しい開発作業を始める前に** `/write-steering [実装したいこと]` を実行し、`docs/steering/[YYYYMMDD]-[開発タイトル]/` に `plan.md`（要求と設計）と `tasklist.md`（タスクと進捗）を作成する。作業中は `tasklist.md` の進捗を更新する。新しい作業では既存を書き換えず、新しいディレクトリを作る。
+
+ステアリングファイルは永続的ドキュメント(001〜006)をベースにする。永続的ドキュメントに既にある記述は繰り返さず、該当箇所をリンク参照する（DRY）。
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
