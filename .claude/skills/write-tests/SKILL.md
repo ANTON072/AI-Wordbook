@@ -29,6 +29,10 @@ description: AI英単語帳アプリの実装に対応するテストを書く�
 
 ロジックを持つファイルに `*.test.ts` を併置する（[004](../../../docs/spec/004_repository-structure.md) 参照）。
 
+## DynamoDB Local と環境変数のセットアップ
+
+結合テストの DynamoDB セットアップ・vitest での環境変数注入方法は [005 テスト戦略](../../../docs/spec/005_development-guidelines.md#テスト戦略) に記載されている（Docker 起動コマンド・`.env.test` の設定値・`src/test/setup.ts` での `loadEnvConfig` の使い方まで含む）。新規テストファイルを作成するときは先にその節を読む。
+
 ## vitest
 
 テストフレームワークは vitest を使う。

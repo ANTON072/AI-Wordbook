@@ -1,7 +1,7 @@
 ---
 description: ステアリングファイル（作業単位ドキュメント）を作成する
 model: opus
-allowed-tools: Read, Write, Bash(find *), Bash(date *), Task
+allowed-tools: Read, Write, Bash(find *), Bash(date *), Task, Agent
 argument-hint: [実装したいこと]
 ---
 
@@ -51,7 +51,7 @@ Read ツールで `.claude/skills/write-steering/plan-template.md` と `.claude/
 **完了フローの必須項目**：`tasklist.md` には、実装タスクの後に以下の3フェーズを必ず含める。
 
 1. **テスト**：`write-tests` スキルを読んで、今回の実装に対応するテスト項目を plan.md の受け入れ条件から導出して tasklist に列挙する（実行は品質チェックで行う）。
-2. **コードレビューループ**：`code-reviewer` エージェントを3周実行し、各周の指摘事項を全て自動修正する。3周後も修正できなかった事項はユーザーに報告する。
+2. **コードレビューループ**：`code-reviewer` エージェントを起動し、指摘一覧をユーザーに提示する。重大度高（セキュリティ・層境界違反）は自動修正し、判断が分かれる指摘はユーザーに確認してから対応する。残存指摘がなくなるまで繰り返し、対応困難な指摘はその理由をユーザーに報告する。
 3. **品質チェック**：`pnpm check`（lint・format・test・typecheck を一括実行するコマンド）が all green になるまで、エラーを自動修正して繰り返す。all green でない限り作業は完了扱いにしない。
 
 ### 6. レビューする
