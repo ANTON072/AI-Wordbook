@@ -80,7 +80,7 @@
 | 4 つの MCP ツール（`features/mcp/tools/`） | 結合 | register の冪等（`attribute_not_exists`）・update/delete の存在前提（`attribute_exists`）の分岐を含む CRUD が、実際の DynamoDB 操作として成立するか |
 | Web 認証コールバック（`features/auth`） | 結合 | `state` 検証（CSRF 対策）が改ざんを弾くか |
 
-- **結合テストの DynamoDB は DynamoDB Local を使う。** 実際の `Query`／`PutItem` と条件式（`attribute_not_exists`／`attribute_exists`）の振る舞いまで検証する。クライアント応答をモックで差し替える方式は、条件式や実クエリの挙動を検証できないため採らない。テスト用の実 AWS テーブルも使わない（認証情報・後始末のコストに見合わない）。DynamoDB Local の起動・接続設定は vitest のセットアップに集約する。
+- **結合テストの DynamoDB は DynamoDB Local を使う。** 実際の `Query`／`PutItem` と条件式（`attribute_not_exists`／`attribute_exists`）の振る舞いまで検証する。クライアント応答をモックで差し替える方式は、条件式や実クエリの挙動を検証できないため採らない。テスト用の実 AWS テーブルも使わない（認証情報・後始末のコストに見合わない）。DynamoDB Local は Docker で起動する（`docker run -d -p 8000:8000 amazon/dynamodb-local`）。エンドポイント URL（`http://localhost:8000`）は `.env.test` に `DYNAMODB_LOCAL_ENDPOINT=http://localhost:8000` として設定し、vitest のセットアップから読み込む。
 
 テストしない対象：外部 SDK の薄いラッパー、自明なアクセサ、UI の見た目、Next.js やライブラリ自体の挙動。これらは振る舞いを持たないか、フレームワーク／ライブラリ側が保証するため、テストの価値がコストを下回る。
 
@@ -109,8 +109,11 @@ SST は本番環境のみ運用するため（stage `production` のみという
 ```sh
 cp .env.local.example .env.local
 # .env.local に 003 の環境変数一覧の実値を記入する
+pnpm install
 pnpm dev
 ```
+
+`@modelcontextprotocol/sdk` が `package.json` に未追加の場合は `pnpm install` の前に `pnpm add @modelcontextprotocol/sdk@latest` を実行する（バージョン方針は 003 参照）。
 
 `.env.local.example` に列挙する変数は [003 の環境変数一覧](./003_architecture.md) の全項目とする。`AWS_REGION` は Lambda では予約変数だが、ローカルでは `ap-northeast-1` を明示する。`APP_BASE_URL` はローカルでは `http://localhost:3000` を指定する。
 

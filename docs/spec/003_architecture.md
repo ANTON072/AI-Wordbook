@@ -49,7 +49,7 @@
 | MCP 用アプリクライアント | パブリック | **無し** | OAuth 2.0 PKCE | Claude Desktop が直接トークン取得。MCP の JWT `client_id` 検証はこのクライアント ID を期待値とする |
 | Web 用アプリクライアント | コンフィデンシャル | 有り | 認可コードフロー | Next.js の callback ハンドラ（`/api/auth/callback`）がサーバーサイドでトークン交換に使用。`COGNITO_WEB_CLIENT_SECRET` をサーバーで安全に保持 |
 
-002 が定めた「アクセストークンの `client_id` 検証」は経路ごとに期待値が異なる：**MCP 経路は `COGNITO_MCP_CLIENT_ID`、Web 経路（Cookie 内 JWT）は `COGNITO_WEB_CLIENT_ID`** を期待値とする。MCP 経路を Web クライアント ID で検証しても、Web 経路を MCP クライアント ID で検証しても、いずれも `client_id` 不一致で恒常的に失敗する。両者を取り違えない。
+経路ごとの `client_id` 期待値の詳細は上記「検証ロジックの共用範囲」参照。取り違えると `client_id` 不一致で恒常的に失敗する。
 
 **Cognito 課金階層：** Essentials 階層を前提とする（Hosted UI・OAuth 2.0 PKCE を含む）。無料 MAU 枠（Essentials は月間一定 MAU まで無料）内の5名規模のため課金は発生しない。
 
@@ -65,7 +65,7 @@
 
 | 用途 | ライブラリ | バージョン方針 | 選定根拠 |
 | --- | --- | --- | --- |
-| MCP サーバー実装 | `@modelcontextprotocol/sdk` | 最新安定版（`^1`） | リモート HTTP のトランスポート・ツール登録・JSON-RPC フレーミングを公式実装で担保。Route Handler にマウントして使う。2026-07-28 仕様のステートレス化（セッションハンドシェイク廃止）対応済み。インストール時は `pnpm add @modelcontextprotocol/sdk@latest` で明示的に最新版を取得すること |
+| MCP サーバー実装 | `@modelcontextprotocol/sdk` | 最新安定版（キャレット制約なし） | リモート HTTP のトランスポート・ツール登録・JSON-RPC フレーミングを公式実装で担保。Route Handler にマウントして使う。2026-07-28 仕様のステートレス化（セッションハンドシェイク廃止）対応済み。インストール手順は 005 参照 |
 | JWT 検証（MCP・Web 共用） | `jose` | 最新安定版（`^6`） | 002 が定めた検証項目を標準 API で実装でき、Lambda 上で軽量に動く。`nodejs24.x` は v6 の動作要件を満たす。`createRemoteJWKSet` で JWKS キャッシュも標準サポート。MCP のアクセストークン検証と Web の Cookie 内 JWT 検証で同一モジュールを使う（`client_id` 期待値のみ引数で切替。上記「検証ロジックの共用範囲」参照） |
 | DynamoDB クライアント | `@aws-sdk/client-dynamodb` + `@aws-sdk/lib-dynamodb` | AWS SDK v3 | `DynamoDBDocumentClient` で JSON の入出力が容易。Lambda ランタイム同梱版とメジャーを揃え、バンドルサイズを抑える |
 | Web 認証（OAuth コードフロー） | 自前実装（追加ライブラリなし） | — | Cognito の `/oauth2/authorize`・`/oauth2/token` を Next.js の Route Handler から呼ぶだけで完結する。トークン交換は標準 `fetch`、`state` 検証・Cookie 発行も薄い自前コードで足りる。認証ライブラリ（Better Auth 等）は導入しない |
@@ -136,7 +136,7 @@ CloudFront はデフォルトで `Authorization` ヘッダを origin に転送�
 | jwks_uri | `{iss}/.well-known/jwks.json`（`iss` は User Pool ID から導出） | Cognito |
 | scopes | `openid` のみ（最小）。本設計は `aud` を持たず `client_id`＋`token_use` で認可するため、スコープは認可判定には用いず、ディスカバリ表示とトークン発行のための最小指定に留める（カスタムリソースサーバースコープは作成しない） | Cognito アプリクライアント設定 |
 
-JWT 検証（検証項目は002。`client_id` の経路別期待値は上記「検証ロジックの共用範囲」）のみ自前実装し、上記ディスカバリと JSON-RPC トランスポートは SDK/Cognito に委ねるのが実装境界。
+JWT 検証（検証項目は002。`client_id` の経路別期待値は上記「検証ロジックの共用範囲」）のみ自前実装し、上記ディスカバリと JSON-RPC トランスポートは SDK/Cognito に委ねるのが実装境界。`/.well-known/oauth-protected-resource` のレスポンスは RFC 9728 Section 2 に定める JSON 形式（`resource`・`authorization_servers` 等のフィールド）で返す。`@modelcontextprotocol/sdk` がヘルパーを提供している場合はそれを使い、未提供なら RFC 9728 に従い自前実装する。
 
 **2026-07-28 仕様の変更点と本プロジェクトへの影響：**
 
@@ -144,7 +144,7 @@ JWT 検証（検証項目は002。`client_id` の経路別期待値は上記「�
 | --- | --- |
 | **ステートレス化**：`initialize`/`initialized` ハンドシェイクと `Mcp-Session-Id` ヘッダーが廃止され、各リクエストが独立して処理される | SDK 最新版で対応済み。アプリ実装側の変更不要 |
 | **DCR → CIMD 移行**：Dynamic Client Registration が廃止され、Client ID Metadata Documents（CIMD）に移行。CIMD はクライアントがメタデータドキュメントを配信する方式 | Cognito は元々 DCR を実装していない。CIMD はクライアント（Claude Desktop）側が担うため、サーバー実装への影響なし |
-| **RFC 9207 `iss` 検証の必須化**：認可レスポンスに `iss` クエリパラメータが含まれること・クライアントが検証することが必須化 | JWT の `iss` クレーム検証（002 仕様）はサーバー側で既に実装範囲。認可レスポンスの `iss` は Claude Desktop SDK が検証する。**Cognito が認可レスポンスに RFC 9207 準拠の `iss` クエリパラメータを返すかは MCP 実装時の接続確認で検証すること**（後述「制約事項」参照） |
+| **RFC 9207 `iss` 検証の必須化**：認可レスポンスに `iss` クエリパラメータが含まれること・クライアントが検証することが必須化 | JWT の `iss` クレーム検証（002 仕様）はサーバー側で既に実装範囲。認可レスポンスの `iss` は Claude Desktop SDK が検証する。詳細と対処方針は後述「制約事項」参照 |
 | **`localhost` リダイレクト URI**：`application_type: native` 指定で `localhost` リダイレクトが公式にサポート | Cognito MCP 用クライアントに `http://127.0.0.1` 登録済み（上記「Claude Desktop のリダイレクト URI」参照）。追加変更不要 |
 
 ## コスト設計

@@ -56,7 +56,7 @@ POST /api/mcp リクエスト
   → JWT検証（exp / iss / client_id / token_use === "access" / Cognito公開鍵署名） → 401 or next
   → 正規化（word および prefix を小文字・全角→半角・空白処理）
   → バリデーション（正規化後の値でスキーマチェック） → エラーメッセージ or next
-  → ツールハンドラ（register / delete / update / search）
+  → ツールハンドラ（`register_word` / `delete_word` / `update_word` / `search_words`）
 ```
 
 Cognito のアクセストークンは `aud` クレームを持たない。代わりに `client_id`（Cognito アプリクライアント ID と一致するか）と `token_use === "access"`（ID トークンとの取り違え防止）を検証する。
@@ -204,7 +204,9 @@ sequenceDiagram
 
 `POST /api/mcp`（単一エンドポイント）にすべてのツール呼び出しを集約。Next.js の Route Handler（`/api/mcp`。物理配置は 004）として実装し、MCP JSON-RPC 形式でリクエストを受け取り、`method` フィールドと `params.name`（ツール名）でルーティングする。JWT 検証は Route Handler 内で自前実装する（PRD 学習目的：JWT 検証フローを自力実装・デプロイ）。CloudFront はリクエストを Lambda へ転送するだけで、JWT 検証・認証処理は一切行わない。
 
-**共通リクエストヘッダー**：`Authorization: Bearer <JWT>`
+**共通リクエストヘッダー**：`Authorization: Bearer <JWT>`。`Mcp-Method`・`Mcp-Name` ヘッダー（MCP 2026-07-28 仕様追加）も CloudFront から転送されるが（転送設定は 003）、`@modelcontextprotocol/sdk` が内部処理するためアプリ実装では参照しない。
+
+**OAuth ディスカバリエンドポイント**：`GET /.well-known/oauth-protected-resource`。Claude Desktop が Cognito の認可経路を発見するためのメタデータを返す。返却内容の仕様は [003「MCP の OAuth ディスカバリ・エンドポイント」](./003_architecture.md) 参照。物理配置は 004。
 
 ### ツール仕様
 

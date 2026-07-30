@@ -71,7 +71,7 @@ ai-wordbook/
 
 | `features/` | 責務 |
 | --- | --- |
-| `mcp/` | MCP サーバー。`lib/auth`・`lib/normalize`・`lib/schema` を束ねてリクエストパイプラインを組み立てる（各ステップと順序は 002）。パイプライン組み立てが `features/mcp` の中核責務であり、Route Handler には置かない。ツールハンドラ（register/delete/update/search を 1 つ 1 ファイル、`tools/` 配下）は永続化に徹する。`.well-known` が返すディスカバリメタデータの組み立ても持つ |
+| `mcp/` | MCP サーバー。`lib/auth`・`lib/normalize`・`lib/schema` を束ねてリクエストパイプラインを組み立てる（各ステップと順序は 002）。パイプライン組み立てが `features/mcp` の中核責務であり、Route Handler には置かない。ツールハンドラ（`register_word`・`delete_word`・`update_word`・`search_words` を 1 つ 1 ファイル、`tools/` 配下）は永続化に徹する。`.well-known` が返すディスカバリメタデータの組み立ても持つ（返却内容の仕様は [003「MCP の OAuth ディスカバリ・エンドポイント」](./003_architecture.md) 参照） |
 | `auth/` | Web の OAuth 認可コードフロー（Cognito 往復・`state` 生成・`state` 検証・Cookie 発行）と、Cookie 内 JWT から `sub` を解決するセッション処理。`app/login/` は起点として `features/auth` を呼ぶだけで、`state` 生成はこちらが持つ |
 | `wordbook/` | Web 閲覧の読み取りのみ（取得方式は 002）。書き込みは持たない |
 
