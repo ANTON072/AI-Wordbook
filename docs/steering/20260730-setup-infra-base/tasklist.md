@@ -3,16 +3,16 @@
 ## 実装タスク
 
 - [x] **[HUMAN]** `aws sso login --profile ougi` を実行して AWS SSO にログイン → 完了したら報告してください
-- [ ] `pnpm add sst@latest --save-dev` で SST v3 (ion) を devDependencies に追加
-- [ ] `node_modules/next/dist/docs/` を参照し、OpenNext が要求する `next.config.ts` の設定を確認・適用
-- [ ] `sst.config.ts` を新規作成し、DynamoDB `Wordbook` テーブルを定義（PK: `userId`、SK: `word`、PAY_PER_REQUEST）
-- [ ] `sst.config.ts` に Cognito User Pool を追加（セルフサインアップ無効・初回パスワード変更強制）
-- [ ] `sst.config.ts` に MCP 用アプリクライアント（パブリック / PKCE / コールバック `http://127.0.0.1`）を追加
-- [ ] `sst.config.ts` に Web 用アプリクライアント（コンフィデンシャル / 認可コードフロー / コールバック `https://ai-wordbook.com/api/auth/callback`）を追加
-- [ ] `sst.config.ts` に SST Secret（`CognitoWebClientSecret`）を追加
-- [ ] `sst.config.ts` に `NextjsSite`（ドメイン `ai-wordbook.com`・003 の環境変数一覧を SST リソース参照から注入・DynamoDB 最小権限）を追加
-- [ ] `.env.local.example` を新規作成（[003 の環境変数一覧](../../spec/003_architecture.md#環境変数一覧) の全項目を空値で列挙）
-- [ ] `.gitignore` に `.env.local` が除外指定されているか確認し、未記載であれば追加する
+- [x] `pnpm add sst@latest --save-dev` で SST v3 (ion) を devDependencies に追加（sst@4.17.1）
+- [x] `node_modules/next/dist/docs/` を参照し、OpenNext が要求する `next.config.ts` の設定を確認・適用（`output: "standalone"` を追加）
+- [x] `sst.config.ts` を新規作成し、DynamoDB `Wordbook` テーブルを定義（PK: `userId`、SK: `word`、PAY_PER_REQUEST）
+- [x] `sst.config.ts` に Cognito User Pool を追加（セルフサインアップ無効・初回パスワード変更強制）
+- [x] `sst.config.ts` に MCP 用アプリクライアント（パブリック / PKCE / コールバック `http://127.0.0.1`）を追加
+- [x] `sst.config.ts` に Web 用アプリクライアント（コンフィデンシャル / 認可コードフロー / コールバック `https://ai-wordbook.com/api/auth/callback`）を追加
+- [x] `sst.config.ts` に SST Secret（`CognitoWebClientSecret`）を追加
+- [x] `sst.config.ts` に `NextjsSite`（ドメイン `ai-wordbook.com`・003 の環境変数一覧を SST リソース参照から注入・DynamoDB 最小権限）を追加
+- [x] `.env.local.example` を新規作成（[003 の環境変数一覧](../../spec/003_architecture.md#環境変数一覧) の全項目を空値で列挙）
+- [x] `.gitignore` に `.env.local` が除外指定されているか確認し、`.sst` ディレクトリを追加（`.env*` パターンで `.env.local` はカバー済み）
 - [ ] **[HUMAN]** `npx sst deploy --stage production` を実行 → 正常終了したら報告してください（初回は ACM 証明書の DNS 検証・CloudFront 配布で 10〜20 分かかります）
 - [ ] **[HUMAN]** デプロイ出力から各 Cognito クライアント ID・User Pool ID・ドメインを `.env.local` に設定し、ローカルで `pnpm dev` が起動することを確認 → 完了したら報告してください
 - [ ] **[HUMAN]** `https://ai-wordbook.com` にブラウザでアクセスし、Next.js ページが表示されることを確認 → 確認できたら報告してください
@@ -50,3 +50,4 @@
 ## 進捗状況
 
 - 2026-07-30 作業開始。AWS SSO ログイン完了。
+- 2026-07-30 SST 4.17.1 インストール、next.config.ts 更新（output: standalone）、sst.config.ts 新規作成（DynamoDB・Cognito・NextjsSite）、.env.local.example 作成、.gitignore 更新（.sst 追加）完了。次は [HUMAN] タスク: `npx sst deploy --stage production`。
