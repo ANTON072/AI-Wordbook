@@ -38,6 +38,7 @@
 | sub | Cognito 発行 JWT のサブジェクトクレーム。ユーザー識別子の値の源泉。 | `sub` | — |
 | アクセストークン | Cognito が発行する JWT（検証項目は 002）。 | — | 概念を指すときは「アクセストークン」。Bearer トークン・Bearer JWT・（単独の）トークンは使わない。※転送方式を示す「Bearer で送る」は可 |
 | セッション | Web のログイン状態（認証方式は 003）。 | — | — |
+| Cognito Hosted UI | AWS が管理するマネージドログイン画面（`{COGNITO_DOMAIN}/oauth2/authorize` 起点）。ログイン処理を AWS に委ね、認証成功後にコールバック URL へリダイレクトする。MCP は PKCE フロー、Web は認可コードフローで使用（フロー詳細は 003）。 | — | Hosted UI |
 | Claude Desktop | MCP クライアントとなるデスクトップアプリ（Mac）。辞書情報の生成主体。 | — | Claude アプリ、Claude Desktop App |
 | リモート HTTP | MCP のトランスポート方式。stdio ではなく HTTP 上で MCP を提供する。 | `/api/mcp` | MCP over HTTP、リモート HTTP MCP |
 | MCP サーバー | MCP ツールを提供する Next.js の実装。受け取った単語データを永続化する。 | `features/mcp` | — |

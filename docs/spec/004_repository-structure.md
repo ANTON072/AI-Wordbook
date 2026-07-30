@@ -60,7 +60,7 @@ ai-wordbook/
 | ディレクトリ | 責務 | 判定基準 |
 | --- | --- | --- |
 | `src/app/` | Next.js App Router のルーティングと、そのルート専用の UI コンポーネント | 画面・URL・UI か。ルート専用 UI はそのルート配下の `_components/` にコロケーションする |
-| `src/features/` | このアプリ固有の振る舞い（ユースケースを実現するロジック・データ取得） | このアプリの仕様を encode しているか（例：register_word の冪等登録、Web 一覧の createdAt 降順取得） |
+| `src/features/` | このアプリ固有の振る舞い（ユースケースを実現するロジック・データ取得） | このアプリ固有のドメイン知識を持つか（例：register_word の冪等登録、Web 一覧の createdAt 降順取得） |
 | `src/lib/` | ビジネス知識を持たない機能横断プリミティブ | 単語帳という題材を知らなくても再利用できるか（例：正規化、JWT 検証、DynamoDB クライアント） |
 
 **Route Handler は薄く保つ。** `api/mcp`・`api/auth/callback`・`.well-known/oauth-protected-resource` のいずれの Route Handler も、リクエスト受付と対応する `features/` 呼び出しの結線のみを担い、振る舞いを持たない。

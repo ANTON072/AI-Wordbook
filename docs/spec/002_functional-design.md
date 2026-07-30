@@ -29,7 +29,7 @@ graph LR
     CW[CloudWatch Logs]
   end
   CD -->|OAuth 2.0 PKCE| COG
-  CD -->|Bearer JWT / POST /api/mcp| CF --> NEXT --> DDB
+  CD -->|アクセストークン（Bearer）/ POST /api/mcp| CF --> NEXT --> DDB
   NEXT -->|個別ページ URL 返却| CD
   BR -->|Hosted UI ログイン（OAuth 認可コード）| COG
   BR --> CF
@@ -89,7 +89,7 @@ Cognito のアクセストークンは `aud` クレームを持たない。代�
 | 項目 | 値 |
 | --- | --- |
 | パーティションキー（PK） | `userId`（Cognito JWT の `sub` クレーム） |
-| ソートキー（SK） | 属性名 `word`、値は正規化済み英単語（小文字・全角→半角・前後空白除去・連続スペース統一） |
+| ソートキー（SK） | 属性名 `word`、値は正規化済み単語（小文字・全角→半角・前後空白除去・連続スペース統一） |
 | 前方一致検索 | `Query(PK=userId, SK begins_with "...")`。GSI 不要 |
 
 `search_words` のアルファベット順は DynamoDB の SK順と一致するためネイティブに実現できる。Web 一覧の登録日時降順はアプリ側ソートで実現する（SK=単語のため DynamoDB ネイティブでは不可）。
@@ -142,9 +142,9 @@ sequenceDiagram
   CD->>COG: OAuth 2.0 PKCE 認証（初回のみ）
   COG-->>CD: アクセストークン（JWT）
   CD->>CD: 辞書情報を生成（品詞・和訳・例文）
-  CD->>NEXT: POST /api/mcp（Bearer JWT, register_word, word/entries）
+  CD->>NEXT: POST /api/mcp（アクセストークン（Bearer）, register_word, word/entries）
   NEXT->>NEXT: JWT 検証 → sub 抽出 → 単語正規化 → バリデーション
-  NEXT->>DDB: PutItem（PK=sub, SK=正規化語, entries, createdAt, updatedAt）<br/>ConditionExpression: attribute_not_exists(SK)
+  NEXT->>DDB: PutItem（PK=sub, SK=正規化済み単語, entries, createdAt, updatedAt）<br/>ConditionExpression: attribute_not_exists(SK)
   alt 書き込み成功（新規）
     DDB-->>NEXT: 完了
     NEXT-->>CD: 個別ページ URL（新規）
@@ -161,7 +161,7 @@ sequenceDiagram
   participant NEXT as Next.js Route Handler（Lambda）
   participant DDB as DynamoDB
 
-  CD->>NEXT: POST /api/mcp（Bearer JWT, update_word, word/entries）
+  CD->>NEXT: POST /api/mcp（アクセストークン（Bearer）, update_word, word/entries）
   NEXT->>NEXT: JWT 検証 → sub 抽出 → 単語正規化 → バリデーション
   NEXT->>DDB: UpdateItem（entries・updatedAt のみ更新, createdAt 保持）<br/>ConditionExpression: attribute_exists(SK)
   alt 更新成功
@@ -234,7 +234,7 @@ type Entry = {
 
 // search_words の戻り値（1件あたり）
 type SearchResultItem = {
-  word: string;         // 正規化済み英単語
+  word: string;         // 正規化済み単語
   translation: string;  // 最初のエントリの和訳（要約表示用）
   url: string;          // 個別ページ URL
 };
@@ -253,7 +253,7 @@ type SearchResultItem = {
 ### 個別ページ URL 形式
 
 ```
-https://<ドメイン>/wordbook/<URLエンコード済み正規化語>
+https://<ドメイン>/wordbook/<URLエンコード済み正規化済み単語>
 ```
 
 - `reliable` → `/wordbook/reliable`

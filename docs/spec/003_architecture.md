@@ -22,7 +22,7 @@
 ### デプロイ環境・ドメイン
 
 - **stage は `production` のみ**。SST の stage 機能で複数環境（staging 等）を設けず、単一の本番環境で運用する。個人・少人数の学習プロジェクトであり、環境分離のコストに見合わないため。
-- **ドメインは Route53 で管理**する。Route53 でホストゾーンを保持し、ACM（`us-east-1`、CloudFront 要件）で TLS 証明書を発行、SST `NextjsSite` の `domain` 設定で CloudFront にカスタムドメインをバインドする。以降、環境変数等の URL 基点はこの独自ドメイン（`https://{独自ドメイン}`）を指す。
+- **ドメインは Route53 で管理**する。Route53 でホストゾーンを保持し、ACM（`us-east-1`、CloudFront 要件）で TLS 証明書を発行、SST `NextjsSite` の `domain` 設定で CloudFront にカスタムドメインをバインドする。以降、環境変数等の URL 基点はこの独自ドメイン（`https://{独自ドメイン}`）を指す。**独自ドメイン採用の根拠：** CloudFront のデフォルトドメイン（`*.cloudfront.net`）は技術的に動作するが、Cognito の OAuth コールバック URL はドメインと 1 対 1 で登録するため、ドメインが変わるたびに Cognito 設定変更が必要になる。独自ドメインを採用することでドメインを安定させ、単語帳 URL（個別ページ）のブックマーク有効性も保つ。追加コストは Route53 ホストゾーン約 $0.50/月 + ドメイン登録年額のみであり、5 名の学習 MVP でも許容できると判断した（コスト設計「Route53」行参照）。
 
 ## 技術スタック選定
 
@@ -30,7 +30,7 @@
 
 | レイヤー | 採用技術 | 選定根拠 | 検討した代替案と却下理由 |
 | --- | --- | --- | --- |
-| 言語 | TypeScript | フロント（Next.js）とバックエンド（Lambda）で単語データ型（`Entry` / `Example` 型等）を共有でき、MCP・Web 間でデータ構造の齟齬を防げる | JavaScript（型共有の恩恵を失う） |
+| 言語 | TypeScript | フロント（Next.js）とバックエンド（Lambda）で単語データの型（`Entry` / `Example` 型等）を共有でき、MCP・Web 間でデータ構造の齟齬を防げる | JavaScript（型共有の恩恵を失う） |
 | IaC / デプロイ | SST v3（ion） | Next.js を OpenNext 化して CloudFront + Lambda に載せる `NextjsSite` を宣言的に扱え、`Secret`・DynamoDB リソース参照・IAM 権限付与を一元管理できる。個人プロジェクトの運用コストが最小 | CDK 単体（Next.js の OpenNext 統合を手書きする必要があり冗長）／Serverless Framework（Next.js 統合が弱い） |
 | MCP 認証 | Amazon Cognito（Hosted UI + OAuth 2.0 PKCE） | OAuth 2.0 PKCE の Hosted UI を標準提供し、JWT の `sub` でユーザー分離できる。管理者によるユーザー手動作成（自由登録不可）・初回パスワード変更強制も設定で満たせる | Auth0（無料枠を超える運用が視野に入り個人利用ではオーバースペック）／自前 IdP（学習範囲を超え、認証を安全に自作するコストが高い） |
 | Web 認証 | Cognito ＋ Next.js 自前実装（OAuth 認可コードフロー） | Cognito の Hosted UI でログインし、Next.js の Route Handler でコード交換 → 取得した JWT を HTTP-only Cookie に保持。Cognito 発行の JWT に `sub` が含まれるため、**MCP と同じ `jose` による JWT 検証をそのまま共用**でき、認証ロジックが一本化される。DB セッション・認証ライブラリを持たず最小構成 | **Better Auth（不採用）**：独自の user id 発番・`user`/`account`/`session` の管理・DynamoDB 用 custom adapter 自前実装が必要で、単一 IdP（Cognito のみ）の本アプリには過剰。**NextAuth.js / Auth.js（不採用）**：同様に独自ユーザー管理層が重く、DynamoDB アダプタの安定性にも不安 |
@@ -38,7 +38,7 @@
 | ホスティング | CloudFront + Lambda（OpenNext） | リクエスト従量課金でアイドル時コストゼロ。個人5名規模ではコールドスタートを許容できる。SST `NextjsSite` で一体管理 | Vercel（AWS/SST 前提のスタックと分離され構成が二重化する）／ECS Fargate（常時起動コストが不経済） |
 | MCP プロトコル | `@modelcontextprotocol/sdk`（公式） | MCP over HTTP のトランスポート・JSON-RPC フレーミングを公式実装で担保し、学習対象（JWT 検証の自前実装）に集中できる。プロトコル準拠と保守コストを SDK に委ねる | JSON-RPC 完全自前実装（プロトコル準拠の保守コストとバグリスクを負う。学習目的は JWT 検証側にあり、フレーミングまで自作する必要はない） |
 
-**認証の役割分担（Cognito 一本化）：** Cognito は「ユーザーの実体・パスワード・OAuth 発行元」を担う唯一の ID プロバイダー。MCP・Web とも Cognito 発行の JWT を Route Handler で `jose` により自前検証する。MCP は Claude Desktop が Bearer トークンで送り、Web は Next.js が OAuth 認可コードフローで取得した JWT を HTTP-only Cookie に保持する（DB セッションは持たない）。両経路とも最終的なユーザー識別子は Cognito の `sub` であり、JWT から直接得られる。
+**認証の役割分担（Cognito 一本化）：** Cognito は「ユーザーの実体・パスワード・OAuth 発行元」を担う唯一の ID プロバイダー。MCP・Web とも Cognito 発行の JWT を Route Handler で `jose` により自前検証する。MCP は Claude Desktop がアクセストークンを Bearer で送り、Web は Next.js が OAuth 認可コードフローで取得した JWT を HTTP-only Cookie に保持する（DB セッションは持たない）。両経路とも最終的なユーザー識別子は Cognito の `sub` であり、JWT から直接得られる。
 
 **検証ロジックの共用範囲（重要）：** 002 が定めた検証項目のうち、署名・`exp`・`iss`・`token_use === "access"` の検証は MCP・Web で完全に共通だが、**`client_id` の期待値だけは経路ごとに異なる**。認可コードフローで発行された Web の JWT は `client_id` が Web クライアント ID になるためである。共用モジュールは `expectedClientId` を引数に取る設計とし、MCP 経路は `COGNITO_MCP_CLIENT_ID`、Web 経路は `COGNITO_WEB_CLIENT_ID` を渡す。
 
@@ -53,12 +53,20 @@
 
 **Cognito 課金階層：** Essentials 階層を前提とする（Hosted UI・OAuth 2.0 PKCE を含む）。無料 MAU 枠（Essentials は月間一定 MAU まで無料）内の5名規模のため課金は発生しない。
 
+**Claude Desktop（MCP 用）のリダイレクト URI：** PKCE フローでは Claude Desktop がランダムポートのループバックサーバーを起動し、Cognito がこの URI（`http://127.0.0.1` + 動的ポート）に認可コードをリダイレクトする。Cognito MCP 用アプリクライアントの「許可されたコールバック URL」に `http://127.0.0.1` を登録する（Cognito はポート部分を区別せず、ホスト部分が一致すれば受け入れる）。
+
+**アクセストークンの有効期限：** Cognito デフォルトの 60 分で運用する。本フェーズはリフレッシュトークンを実装しないため、期限切れ時は再ログインが必要になる（制約事項「Web トークンのリフレッシュ未実装」参照）。
+
+**OAuth state の保持方式：**
+- MCP（Claude Desktop）：`@modelcontextprotocol/sdk` がフロー中の state をメモリに保持・検証する。アプリ実装では担わない。
+- Web：`/login` Route Handler が state を生成し HTTP-only Cookie に格納。`/api/auth/callback` での state 照合で CSRF を防ぐ（詳細は 002 シーケンス図）。
+
 ### 主要ライブラリ選定
 
 | 用途 | ライブラリ | バージョン方針 | 選定根拠 |
 | --- | --- | --- | --- |
 | MCP サーバー実装 | `@modelcontextprotocol/sdk` | 最新安定版（`^1`） | MCP over HTTP のトランスポート・ツール登録・JSON-RPC フレーミングを公式実装で担保。Route Handler にマウントして使う |
-| JWT 検証（MCP・Web 共用） | `jose` | 最新安定版（`^6`） | 002 が定めた検証項目を標準 API で実装でき、Lambda 上で軽量に動く。`nodejs24.x` は v6 の動作要件を満たす。`createRemoteJWKSet` で JWKS キャッシュも標準サポート。MCP の Bearer トークン検証と Web の Cookie 内 JWT 検証で同一モジュールを使う（`client_id` 期待値のみ引数で切替。上記「検証ロジックの共用範囲」参照） |
+| JWT 検証（MCP・Web 共用） | `jose` | 最新安定版（`^6`） | 002 が定めた検証項目を標準 API で実装でき、Lambda 上で軽量に動く。`nodejs24.x` は v6 の動作要件を満たす。`createRemoteJWKSet` で JWKS キャッシュも標準サポート。MCP のアクセストークン検証と Web の Cookie 内 JWT 検証で同一モジュールを使う（`client_id` 期待値のみ引数で切替。上記「検証ロジックの共用範囲」参照） |
 | DynamoDB クライアント | `@aws-sdk/client-dynamodb` + `@aws-sdk/lib-dynamodb` | AWS SDK v3 | `DynamoDBDocumentClient` で JSON の入出力が容易。Lambda ランタイム同梱版とメジャーを揃え、バンドルサイズを抑える |
 | Web 認証（OAuth コードフロー） | 自前実装（追加ライブラリなし） | — | Cognito の `/oauth2/authorize`・`/oauth2/token` を Next.js の Route Handler から呼ぶだけで完結する。トークン交換は標準 `fetch`、`state` 検証・Cookie 発行も薄い自前コードで足りる。認証ライブラリ（Better Auth 等）は導入しない |
 | バリデーション | `zod` | `^4` | MCP ツール入力（`WordInput` / `Entry` / `prefix`）のスキーマ検証を型と一元化。正規化後の値に対して 002 のバリデーション規則を宣言的に表現 |
@@ -78,7 +86,7 @@ Web のログイン状態は**認証用の DB テーブルを持たず、HTTP-on
 | --- | --- |
 | 保持するもの | Cognito 発行の JWT を HTTP-only・`Secure`・`SameSite=Lax` の Cookie に格納 |
 | ユーザー識別 | 毎リクエストで Cookie 内 JWT を `jose` 検証し、`sub` クレームを直接 userId として使う（MCP と同一モジュール。ただし `client_id` 期待値は `COGNITO_WEB_CLIENT_ID`） |
-| 単語クエリ | `Query(PK=sub)`。MCP 側の PK（Bearer JWT の `sub`）と完全に一致する |
+| 単語クエリ | `Query(PK=sub)`。MCP 側の PK（アクセストークンの `sub`）と完全に一致する |
 | ログアウト／失効 | Cookie 削除、または JWT の `exp` 到達で失効。失効時はログインページへリダイレクト |
 | トークン期限切れ | 本フェーズではリフレッシュを実装せず、期限切れ時は再ログイン（PRD の「セッション失効時はログインページへリダイレクト」に準拠。将来リフレッシュトークン運用に拡張可能） |
 
@@ -103,12 +111,12 @@ PRD の性能目標（MCP 書き込み3秒以内・Web 一覧表示3秒以内、
 
 ### CloudFront の `/api/mcp` ビヘイビア設定
 
-CloudFront はデフォルトで `Authorization` ヘッダを origin に転送せず、POST レスポンスの扱いもポリシー次第のため、Bearer トークンが Lambda に届くよう明示設定する。SST `NextjsSite`（OpenNext）が概ね面倒を見るが、本書が非機能の設定責任を負う以上、以下を確約する。
+CloudFront はデフォルトで `Authorization` ヘッダを origin に転送せず、POST レスポンスの扱いもポリシー次第のため、アクセストークン（Bearer）が Lambda に届くよう明示設定する。SST `NextjsSite`（OpenNext）が概ね面倒を見るが、本書が非機能の設定責任を負う以上、以下を確約する。
 
 | 設定 | 値 | 根拠 |
 | --- | --- | --- |
 | キャッシュポリシー | 無効（`CachingDisabled` 相当） | 認証付き動的レスポンスを誤キャッシュしない |
-| オリジンリクエストポリシー | `Authorization` を含むヘッダを origin へ転送 | Bearer トークンを Lambda に到達させる |
+| オリジンリクエストポリシー | `Authorization` を含むヘッダを origin へ転送 | アクセストークン（Bearer）を Lambda に到達させる |
 | 許可メソッド | `POST`（`GET`/`HEAD` 含む） | MCP は JSON-RPC over POST |
 
 `/.well-known/oauth-protected-resource`（後述の OAuth ディスカバリ）も Next.js のサーバールートであり、オリジン（Lambda）へ転送し長期キャッシュしない。ディスカバリ経路と `/api/mcp` はいずれも「サーバー関数へ転送・キャッシュ無効」で統一する。
@@ -180,7 +188,7 @@ Web 認証は Cookie 内 JWT のステートレス方式で認証用テーブル
 
 **OpenNext 付随リソースの権限：** 再検証キュー（SQS）・ISR キャッシュテーブル・画像最適化関数など OpenNext が生成するリソースへの権限は、SST が各関数に**最小権限で自動付与**する。これらは上記の手書きロール表の対象外であり、手動でワイルドカードを付与しない。手書きで管理するのは Wordbook テーブルと CloudWatch Logs のアクセスに限る。
 
-**認可の実装レイヤー（単一関数・単一ロール前提）：** 実行ロールは Wordbook の書き込み権限を必然的に持つため、「Web からの単語書き込み抑止」と「ユーザー間のデータ分離」は IAM ではなく**アプリ層（Route Handler）で保証する**。具体的には (1) 単語の書き込みは `/api/mcp` の MCP ツールハンドラ経由のみとし Web 画面ルートからは呼ばない、(2) 行レベルのユーザー分離は必ず検証済みトークン由来の識別子を PK に強制する — MCP は Bearer JWT の `sub`、Web は Cookie 内 JWT を検証して得た `sub` を使い、クライアントから PK（userId）を受け取らない。
+**認可の実装レイヤー（単一関数・単一ロール前提）：** 実行ロールは Wordbook の書き込み権限を必然的に持つため、「Web からの単語書き込み抑止」と「ユーザー間のデータ分離」は IAM ではなく**アプリ層（Route Handler）で保証する**。具体的には (1) 単語の書き込みは `/api/mcp` の MCP ツールハンドラ経由のみとし Web 画面ルートからは呼ばない、(2) 行レベルのユーザー分離は必ず検証済みトークン由来の識別子を PK に強制する — MCP はアクセストークンの `sub`、Web は Cookie 内 JWT を検証して得た `sub` を使い、クライアントから PK（userId）を受け取らない。
 
 ### シークレット・認証情報管理
 
