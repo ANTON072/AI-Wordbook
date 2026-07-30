@@ -38,5 +38,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Warning
 
-- 社内規定のため Claude Code の Hook を利用することはできません。
-- 社内規定のため外部 MCP を利用することはできません。
+- 諸事情のためClaude Code の Hook を利用することはできません。
+- 諸事情のため外部 MCP を利用することはできません。
