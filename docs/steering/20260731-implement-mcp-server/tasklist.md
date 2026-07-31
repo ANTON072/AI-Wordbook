@@ -74,40 +74,29 @@
 
 ### デプロイ
 
-- [ ] **[HUMAN]** `sst deploy` を実行してください → 完了したら報告してください
+- [x] **[HUMAN]** `sst deploy` を実行してください → 完了したら報告してください
 
 ### Claude Desktop へのサーバー登録
 
-- [ ] **[HUMAN]** Claude Desktop の設定ファイルを開き、MCP サーバーを追加してください
+- [x] **[HUMAN]** Claude Desktop にカスタムコネクタとして MCP サーバーを追加してください
 
-設定ファイルの場所（Mac）：
-```
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
+当初計画の `claude_desktop_config.json` への `url` 直書きは無効（stdio 型専用のため）。実際の登録手順は次のとおり（経緯は [worklog.md](./worklog.md)）：
 
-追加する設定（`mcpServers` に追記）：
-```json
-{
-  "mcpServers": {
-    "ai-wordbook": {
-      "url": "https://{デプロイ後のドメイン}/api/mcp"
-    }
-  }
-}
-```
+1. Claude の設定 → コネクタ → カスタムコネクタを追加（URL: `https://ai-wordbook.com/api/mcp`）
+2. コネクタ編集画面の詳細設定に OAuth クライアント ID（`McpClient` の ID）を手動入力（Cognito が DCR 非対応のため）
 
 ### OAuth 認証フローの確認
 
-- [ ] **[HUMAN]** Claude Desktop を完全に再起動し、初回接続時に Cognito Hosted UI が開くことを確認してください
+- [x] **[HUMAN]** コネクタの「連携」から Cognito Hosted UI でログインできることを確認してください
   - ブラウザで Cognito のログイン画面が表示される
   - ユーザー名・パスワードを入力してログイン
   - 初回は強制パスワード変更画面が表示される場合あり → 変更して続行
-  - Claude Desktop に「接続しました」等の通知が返れば認証成功
+  - コネクタが「接続済み」になれば認証成功
   - 完了したら報告してください
 
 ### 各ツールの動作確認
 
-- [ ] **[HUMAN]** `register_word` の動作を確認してください
+- [x] **[HUMAN]** `register_word` の動作を確認してください（2026-07-31: 登録成功。冪等性（再登録で上書きされない）は未確認）
 
 Claude Desktop のチャットに以下のように入力します：
 
@@ -121,7 +110,7 @@ Claude Desktop のチャットに以下のように入力します：
 - `https://{ドメイン}/wordbook/reliable` 形式の URL が返る
 - 同じ単語をもう一度登録しようとしても上書きされず、既存 URL が返る（冪等）
 
-- [ ] **[HUMAN]** `search_words` の動作を確認してください
+- [x] **[HUMAN]** `search_words` の動作を確認してください（2026-07-31: 「re」前方一致で登録済みの reliable が返ることを確認）
 
 ```
 「rel」から始まる単語を検索して
@@ -174,4 +163,4 @@ Claude Desktop のチャットに以下のように入力します：
 | テスト | ✅ 完了（64件） |
 | コードレビューループ | ✅ 完了（2周・全指摘対応済み） |
 | 品質チェック | ✅ all green |
-| 手動動作確認 | ⬜ 未着手 |
+| 手動動作確認 | 🔶 着手中（デプロイ・接続・register_word/search_words まで完了。update_word・delete_word・冪等性・MVP 最終確認が残） |

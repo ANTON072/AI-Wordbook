@@ -16,5 +16,9 @@ export function buildOAuthProtectedResourceMetadata(): Record<string, unknown> {
   return {
     resource: `${baseUrl}/api/mcp`,
     authorization_servers: [issuer],
+    // scopes_supported が無いと MCP クライアントは AS メタデータの全スコープ
+    // （openid email phone profile）を要求し、openid のみ許可の McpClient で
+    // invalid_scope になる。openid のみを明示して要求スコープを最小化する
+    scopes_supported: ["openid"],
   };
 }

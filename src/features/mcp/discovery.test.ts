@@ -23,6 +23,13 @@ describe("buildOAuthProtectedResourceMetadata", () => {
     expect(metadata.resource).toBe("https://example.com/api/mcp");
   });
 
+  it("scopes_supported に openid のみを含める", () => {
+    // Act
+    const metadata = buildOAuthProtectedResourceMetadata();
+    // Assert
+    expect(metadata.scopes_supported).toEqual(["openid"]);
+  });
+
   it("authorization_servers を Cognito iss URL で組み立てる", () => {
     // Act
     const metadata = buildOAuthProtectedResourceMetadata();

@@ -47,12 +47,17 @@ export default $config({
 
     // MCP 用: パブリッククライアント（シークレット無し / PKCE）
     const mcpClient = userPool.addClient("McpClient", {
-      callbackUrls: ["http://127.0.0.1"],
+      // Claude カスタムコネクタの OAuth コールバック（claude.ai / claude.com の両ドメイン）
+      callbackUrls: [
+        "https://claude.ai/api/mcp/auth_callback",
+        "https://claude.com/api/mcp/auth_callback",
+      ],
       transform: {
         client: {
           allowedOauthFlows: ["code"],
           allowedOauthFlowsUserPoolClient: true,
-          // 003:137 - scopes は openid のみ（最小）
+          // 003:137 - scopes は openid のみ（最小）。MCP クライアントには
+          // discovery の scopes_supported で openid のみ要求するよう伝えている
           allowedOauthScopes: ["openid"],
           supportedIdentityProviders: ["COGNITO"],
         },
