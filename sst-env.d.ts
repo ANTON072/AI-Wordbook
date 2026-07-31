@@ -6,30 +6,30 @@
 
 declare module "sst" {
   export interface Resource {
-    "McpClient": {
-      "id": string
-      "secret": string
-      "type": "sst.aws.CognitoUserPoolClient"
-    }
-    "Site": {
-      "type": "sst.aws.Nextjs"
-      "url": string
-    }
-    "UserPool": {
-      "id": string
-      "type": "sst.aws.CognitoUserPool"
-    }
-    "WebClient": {
-      "id": string
-      "secret": string
-      "type": "sst.aws.CognitoUserPoolClient"
-    }
-    "Wordbook": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
+    McpClient: {
+      id: string;
+      secret: string;
+      type: "sst.aws.CognitoUserPoolClient";
+    };
+    Site: {
+      type: "sst.aws.Nextjs";
+      url: string;
+    };
+    UserPool: {
+      id: string;
+      type: "sst.aws.CognitoUserPool";
+    };
+    WebClient: {
+      id: string;
+      secret: string;
+      type: "sst.aws.CognitoUserPoolClient";
+    };
+    Wordbook: {
+      name: string;
+      type: "sst.aws.Dynamo";
+    };
   }
 }
 
-import "sst"
-export {}
+import "sst";
+export {};

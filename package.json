@@ -14,9 +14,13 @@
     "check": "pnpm lint && pnpm test && pnpm typecheck"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1098.0",
+    "@aws-sdk/lib-dynamodb": "^3.1098.0",
+    "jose": "^6.2.5",
     "next": "16.2.12",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
