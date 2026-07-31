@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>認証フローの違い：通常のWebサービス vs MCPサーバー</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    padding: 40px 24px 80px;
+    line-height: 1.6;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 56px;
+  }
+
+  .section {
+    max-width: 860px;
+    margin: 0 auto 64px;
+  }
+
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  .label-normal {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+  }
+
+  .label-mcp {
+    background: #1a1f2e;
+    color: #818cf8;
+    border: 1px solid #3730a3;
+  }
+
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #f1f5f9;
+  }
+
+  .section-desc {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-bottom: 28px;
+  }
+
+  .diagram-wrap {
+    background: #161b27;
+    border: 1px solid #1e2d45;
+    border-radius: 12px;
+    padding: 32px 24px;
+    overflow-x: auto;
+  }
+
+  .diagram-wrap svg {
+    display: block;
+    margin: 0 auto;
+    overflow: visible;
+  }
+
+  .note-box {
+    margin-top: 20px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+  }
+
+  .note-normal {
+    background: #1a2535;
+    border-left: 3px solid #38bdf8;
+    color: #94a3b8;
+  }
+
+  .note-mcp {
+    background: #1a1a2e;
+    border-left: 3px solid #818cf8;
+    color: #94a3b8;
+  }
+
+  .note-box strong {
+    color: #e2e8f0;
+  }
+
+  .comparison {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #161b27;
+    border: 1px solid #1e2d45;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .comparison-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    background: #1e293b;
+    border-bottom: 1px solid #1e2d45;
+  }
+
+  .comparison-header div {
+    padding: 12px 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+
+  .comparison-header div:not(:last-child) {
+    border-right: 1px solid #1e2d45;
+  }
+
+  .comparison-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-bottom: 1px solid #1e2d45;
+  }
+
+  .comparison-row:last-child {
+    border-bottom: none;
+  }
+
+  .comparison-row div {
+    padding: 14px 20px;
+    font-size: 0.875rem;
+    color: #94a3b8;
+  }
+
+  .comparison-row div:first-child {
+    color: #64748b;
+    font-size: 0.8rem;
+  }
+
+  .comparison-row div:not(:last-child) {
+    border-right: 1px solid #1e2d45;
+  }
+
+  .yes { color: #4ade80 !important; }
+  .no  { color: #f87171 !important; }
+  .highlight { color: #818cf8 !important; }
+</style>
+</head>
+<body>
+
+<h1>認証フローの違い</h1>
+<p class="subtitle">通常のWebサービス vs MCPサーバー — なぜ <code>.well-known/</code> が必要になるのか</p>
+
+<!-- ========== 通常のWebサービス ========== -->
+<div class="section">
+  <div class="section-label label-normal">Case 1</div>
+  <div class="section-title">通常のWebサービス</div>
+  <div class="section-desc">Auth0・Cognito・Google などの既存認証サービスを使う場合</div>
+
+  <div class="diagram-wrap">
+    <svg width="780" height="320" viewBox="0 0 780 320">
+      <defs>
+        <marker id="arr-gray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#475569"/>
+        </marker>
+        <marker id="arr-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#38bdf8"/>
+        </marker>
+        <marker id="arr-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#4ade80"/>
+        </marker>
+      </defs>
+
+      <!-- ノード: ユーザー -->
+      <rect x="20" y="110" width="140" height="64" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="90" y="137" text-anchor="middle" font-size="13" fill="#94a3b8" font-weight="600">👤 ユーザー</text>
+      <text x="90" y="157" text-anchor="middle" font-size="11" fill="#475569">(ブラウザ)</text>
+
+      <!-- ノード: Webアプリ -->
+      <rect x="220" y="110" width="150" height="64" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="295" y="137" text-anchor="middle" font-size="13" fill="#94a3b8" font-weight="600">🌐 Webアプリ</text>
+      <text x="295" y="157" text-anchor="middle" font-size="11" fill="#475569">(自分のサーバー)</text>
+
+      <!-- ノード: 既存認証サービス -->
+      <rect x="490" y="60" width="180" height="64" rx="10" fill="#0c1a2e" stroke="#1e3a5f" stroke-width="1.5"/>
+      <text x="580" y="87" text-anchor="middle" font-size="13" fill="#38bdf8" font-weight="600">🔐 既存認証サービス</text>
+      <text x="580" y="107" text-anchor="middle" font-size="11" fill="#1d4ed8">Auth0 / Cognito / Google</text>
+
+      <!-- .well-known バッジ -->
+      <rect x="510" y="140" width="140" height="26" rx="6" fill="#0a1628" stroke="#1e3a5f" stroke-width="1"/>
+      <text x="580" y="157" text-anchor="middle" font-size="11" fill="#3b82f6">✓ .well-known/ を公開済み</text>
+
+      <!-- ノード: コールバック -->
+      <rect x="490" y="230" width="180" height="52" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="580" y="256" text-anchor="middle" font-size="13" fill="#94a3b8" font-weight="600">↩ コールバックURL</text>
+      <text x="580" y="274" text-anchor="middle" font-size="11" fill="#475569">/api/auth/callback</text>
+
+      <!-- 矢印 1: ユーザー → Webアプリ -->
+      <line x1="162" y1="142" x2="218" y2="142" stroke="#475569" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+      <text x="190" y="133" text-anchor="middle" font-size="10" fill="#475569">① アクセス</text>
+
+      <!-- 矢印 2: Webアプリ → 既存認証サービス -->
+      <path d="M 370 130 Q 430 80 488 88" stroke="#38bdf8" stroke-width="1.5" fill="none" marker-end="url(#arr-blue)" stroke-dasharray="5,3"/>
+      <text x="420" y="90" text-anchor="middle" font-size="10" fill="#38bdf8">② 認証へリダイレクト</text>
+
+      <!-- 矢印 3: 既存認証サービス → コールバック -->
+      <line x1="580" y1="124" x2="580" y2="228" stroke="#475569" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+      <text x="610" y="185" font-size="10" fill="#475569">③ ログイン後</text>
+      <text x="610" y="198" font-size="10" fill="#475569">リダイレクト</text>
+
+      <!-- 矢印 4: コールバック → Webアプリ -->
+      <path d="M 488 256 Q 430 270 372 152" stroke="#4ade80" stroke-width="1.5" fill="none" marker-end="url(#arr-green)"/>
+      <text x="390" y="238" text-anchor="middle" font-size="10" fill="#4ade80">④ トークン取得・ログイン完了</text>
+
+      <!-- 自分で作る必要なし ラベル -->
+      <rect x="490" y="174" width="180" height="22" rx="4" fill="#042c16"/>
+      <text x="580" y="189" text-anchor="middle" font-size="11" fill="#4ade80">自分で作る必要なし ✓</text>
+    </svg>
+  </div>
+
+  <div class="note-box note-normal">
+    <strong>ポイント：</strong>自分のサーバーは認証サービスの「クライアント」として動作する。
+    <code>.well-known/</code> はAuth0やCognitoが公開してくれているので、自分で用意する必要はない。
+    コールバックURLを設定するだけでよい。
+  </div>
+</div>
+
+<!-- ========== MCPサーバー ========== -->
+<div class="section">
+  <div class="section-label label-mcp">Case 2</div>
+  <div class="section-title">MCPサーバー</div>
+  <div class="section-desc">Claude Desktopがクライアント。自分のサーバーがOAuthサーバーを兼ねる場合</div>
+
+  <div class="diagram-wrap">
+    <svg width="780" height="340" viewBox="0 0 780 340">
+      <defs>
+        <marker id="arr-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#818cf8"/>
+        </marker>
+        <marker id="arr-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#fb923c"/>
+        </marker>
+        <marker id="arr-green2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#4ade80"/>
+        </marker>
+        <marker id="arr-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#f87171"/>
+        </marker>
+      </defs>
+
+      <!-- ノード: Claude Desktop -->
+      <rect x="20" y="130" width="160" height="72" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="100" y="160" text-anchor="middle" font-size="13" fill="#94a3b8" font-weight="600">🤖 Claude Desktop</text>
+      <text x="100" y="180" text-anchor="middle" font-size="11" fill="#475569">OAuthクライアント</text>
+      <text x="100" y="196" text-anchor="middle" font-size="10" fill="#475569">.well-known/ を読みにくる</text>
+
+      <!-- ノード: MCPサーバー（自分） -->
+      <rect x="480" y="80" width="200" height="160" rx="10" fill="#1a1a2e" stroke="#3730a3" stroke-width="2"/>
+      <text x="580" y="112" text-anchor="middle" font-size="14" fill="#818cf8" font-weight="700">⚡ MCPサーバー</text>
+      <text x="580" y="132" text-anchor="middle" font-size="11" fill="#4338ca">(自分のサーバー)</text>
+
+      <!-- .well-known/ セクション -->
+      <rect x="500" y="146" width="160" height="34" rx="6" fill="#0d0d2b" stroke="#3730a3" stroke-width="1"/>
+      <text x="580" y="161" text-anchor="middle" font-size="11" fill="#818cf8" font-weight="600">📁 .well-known/</text>
+      <text x="580" y="175" text-anchor="middle" font-size="10" fill="#4338ca">自分で公開する必要あり</text>
+
+      <!-- コールバックURL セクション -->
+      <rect x="500" y="194" width="160" height="34" rx="6" fill="#0d1a0d" stroke="#166534" stroke-width="1"/>
+      <text x="580" y="209" text-anchor="middle" font-size="11" fill="#4ade80" font-weight="600">↩ コールバックURL</text>
+      <text x="580" y="223" text-anchor="middle" font-size="10" fill="#166534">こちらも自分で実装</text>
+
+      <!-- 矢印 1: Claude Desktop → MCPサーバー (.well-known読み取り) -->
+      <path d="M 182 152 Q 330 100 478 152" stroke="#818cf8" stroke-width="1.5" fill="none" marker-end="url(#arr-purple)" stroke-dasharray="5,3"/>
+      <text x="310" y="104" text-anchor="middle" font-size="10" fill="#818cf8">① .well-known/ を取得</text>
+      <text x="310" y="117" text-anchor="middle" font-size="10" fill="#818cf8">（認証エンドポイントを発見）</text>
+
+      <!-- 矢印 2: Claude Desktop → MCPサーバー (認証リクエスト) -->
+      <path d="M 182 170 L 478 170" stroke="#fb923c" stroke-width="1.5" fill="none" marker-end="url(#arr-orange)"/>
+      <text x="330" y="162" text-anchor="middle" font-size="10" fill="#fb923c">② 認証リクエスト</text>
+
+      <!-- 矢印 3: MCPサーバー → Claude Desktop (コールバック) -->
+      <path d="M 478 210 L 182 210" stroke="#4ade80" stroke-width="1.5" fill="none" marker-end="url(#arr-green2)"/>
+      <text x="330" y="225" text-anchor="middle" font-size="10" fill="#4ade80">③ コールバック → トークン発行</text>
+
+      <!-- 「外部認証サービスなし」を示す -->
+      <rect x="200" y="270" width="200" height="42" rx="8" fill="#1a0a0a" stroke="#7f1d1d" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="300" y="290" text-anchor="middle" font-size="11" fill="#f87171">外部認証サービスは使わない</text>
+      <text x="300" y="305" text-anchor="middle" font-size="10" fill="#7f1d1d">Claude Desktopは直接MCPサーバーへ</text>
+
+      <!-- バツ矢印（外部サービスへの矢印がないことを示す） -->
+      <line x1="300" y1="255" x2="300" y2="268" stroke="#7f1d1d" stroke-width="1.5" marker-end="url(#arr-red)"/>
+    </svg>
+  </div>
+
+  <div class="note-box note-mcp">
+    <strong>ポイント：</strong>Claude Desktopは既存認証サービスを経由しない。
+    直接MCPサーバーに <code>.well-known/</code> を読みに来るため、
+    <strong>自分のサーバーがOAuthサーバーの役割を兼ねる必要がある</strong>。
+    <code>.well-known/</code> もコールバックURLも、どちらも自分で実装する。
+  </div>
+</div>
+
+<!-- ========== 比較表 ========== -->
+<div class="section" style="margin-bottom: 0;">
+  <div style="font-size: 1.1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 20px; max-width: 860px; margin-left: auto; margin-right: auto;">まとめ比較</div>
+  <div class="comparison">
+    <div class="comparison-header">
+      <div>観点</div>
+      <div>通常のWebサービス</div>
+      <div>MCPサーバー</div>
+    </div>
+    <div class="comparison-row">
+      <div>OAuthサーバーの役割</div>
+      <div>Auth0 / Cognito などが担う</div>
+      <div class="highlight">自分のサーバーが担う</div>
+    </div>
+    <div class="comparison-row">
+      <div>.well-known/ の用意</div>
+      <div class="yes">不要（外部サービスが公開）</div>
+      <div class="no">必要（自分で実装）</div>
+    </div>
+    <div class="comparison-row">
+      <div>コールバックURL</div>
+      <div>必要（設定するだけ）</div>
+      <div class="no">必要（自分で実装）</div>
+    </div>
+    <div class="comparison-row">
+      <div>認証クライアント</div>
+      <div>ユーザー（ブラウザ）</div>
+      <div class="highlight">Claude Desktop</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
