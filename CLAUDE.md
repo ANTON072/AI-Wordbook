@@ -6,14 +6,25 @@
 
 AI英単語帳アプリ。ユーザーが手元のClaudeアプリからmcpを介して単語を操作できる。Web画面で登録した単語が閲覧可能。
 
-## 永続的ドキュメント
+## おもなディレクトリ構成
+
+|パス|内容|
+|-----|-----|
+|`docs/note`|ユーザーの私的メモ。AIは読む必要はない。|
+|`docs/spec`|永続的ドキュメント群。詳しくは以下で説明。|
+|`docs/steering`|作業単位ドキュメント群。詳しくは以下で説明。|
+|`src/`|このプロダクトのソースコード(Next.jsがベース)。|
+
+### ドキュメント記述ルール
+
+ドキュメントを書く・推敲する際の文体は `doc-writing-style` スキルの規範に従う。
+
+### 永続的ドキュメント
 
 アプリケーション全体の「何を作るか・どう作るか」を定義する恒久ファイル。
 基本設計が変わらない限り更新しないのが原則。
 
 `docs/spec/001_` 〜 `docs/spec/006_` のいずれかのファイルを新規作成・編集した後は、**必ず** `docs-integration-reviewer` エージェントを起動して横断レビューを実施する。レビュー結果はユーザーに提示し、重大な矛盾・DRY違反が検出された場合はその場で修正案を提案する。
-
-これら永続的ドキュメントを書く・推敲する際の文体は `doc-writing-style` スキルの規範に従う。
 
 |ドキュメント|読むタイミング|
 |----|----|
@@ -24,7 +35,7 @@ AI英単語帳アプリ。ユーザーが手元のClaudeアプリからmcpを介
 |[005_開発ガイドライン](./docs/spec/005_development-guidelines.md)|コードレビュー・コーディング規約に関する判断の前|
 |[006_ユビキタス言語定義（共通言語）](./docs/spec/006_glossary.md)|変数名・用語の命名に迷った時|
 
-## 作業単位ドキュメント（ステアリング）
+### 作業単位ドキュメント（ステアリング）
 
 1回の開発作業（機能追加・バグ修正・改善など）で「今回何をするか」を定義するファイル。永続的ドキュメント(`docs/spec/`)が基本設計を定める恒久ファイルなのに対し、ステアリングファイル(`docs/steering/`)は作業単位で作り、完了後は参照用として保持する。この2種類でライフサイクルを分離する。
 
@@ -36,7 +47,6 @@ AI英単語帳アプリ。ユーザーが手元のClaudeアプリからmcpを介
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
-## Warning
+## 制約
 
-- 諸事情のためClaude Code の Hook を利用することはできません。
-- 諸事情のため外部 MCP を利用することはできません。
+- Claude Code の Hook は利用禁止
